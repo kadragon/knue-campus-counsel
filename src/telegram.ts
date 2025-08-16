@@ -1,3 +1,4 @@
+import { fetchWithRetry } from './http'
 type FetchLike = typeof fetch
 
 export async function sendMessage(opts: {
@@ -15,7 +16,7 @@ export async function sendMessage(opts: {
     fetchImpl = fetch,
   } = opts
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`
-  const res = await fetchImpl(url, {
+  const res = await fetchWithRetry(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -24,11 +25,10 @@ export async function sendMessage(opts: {
       parse_mode: 'HTML',
       disable_web_page_preview: disablePreview,
     }),
-  })
+  }, { fetchImpl })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`Telegram sendMessage failed: ${res.status} ${text}`)
   }
   return res
 }
-

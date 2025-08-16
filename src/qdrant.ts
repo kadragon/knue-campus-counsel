@@ -1,3 +1,4 @@
+import { fetchWithRetry } from './http'
 type FetchLike = typeof fetch
 
 export type QdrantHit = {
@@ -21,16 +22,15 @@ export async function qdrantSearch(opts: {
   const body: any = { vector, limit, with_payload: true }
   if (filter) body.filter = filter
   if (typeof scoreThreshold === 'number') body.score_threshold = scoreThreshold
-  const res = await fetchImpl(endpoint, {
+  const res = await fetchWithRetry(endpoint, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'api-key': apiKey,
     },
     body: JSON.stringify(body),
-  })
+  }, { fetchImpl })
   if (!res.ok) throw new Error(`Qdrant search error: ${res.status}`)
   const json = await res.json() as any
   return (json.result ?? []) as QdrantHit[]
 }
-

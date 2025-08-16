@@ -1,3 +1,4 @@
+import { fetchWithRetry } from './http'
 type FetchLike = typeof fetch
 
 export async function createEmbedding(opts: {
@@ -7,14 +8,14 @@ export async function createEmbedding(opts: {
   fetchImpl?: FetchLike
 }): Promise<number[]> {
   const { apiKey, input, model, fetchImpl = fetch } = opts
-  const res = await fetchImpl('https://api.openai.com/v1/embeddings', {
+  const res = await fetchWithRetry('https://api.openai.com/v1/embeddings', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ input, model }),
-  })
+  }, { fetchImpl })
   if (!res.ok) throw new Error(`OpenAI embeddings error: ${res.status}`)
   const json = await res.json() as any
   return json.data?.[0]?.embedding ?? []
@@ -28,16 +29,15 @@ export async function chatComplete(opts: {
   fetchImpl?: FetchLike
 }): Promise<string> {
   const { apiKey, model, messages, temperature = 0.2, fetchImpl = fetch } = opts
-  const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ model, messages, temperature }),
-  })
+  }, { fetchImpl })
   if (!res.ok) throw new Error(`OpenAI chat error: ${res.status}`)
   const json = await res.json() as any
   return json.choices?.[0]?.message?.content ?? ''
 }
-
