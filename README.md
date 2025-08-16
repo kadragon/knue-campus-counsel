@@ -58,6 +58,10 @@ npm run webhook:delete
 npm run webhook:info
 ```
 
+주의: 중복 호출 방지
+- 스크립트는 기본적으로 `allowed_updates: ['message']`만 구독해, 봇이 보낸 메시지나 편집 이벤트(edited_message)로 인한 불필요한 웹훅 호출을 줄입니다.
+- 서버 측에서도 `from.is_bot` 메시지는 무시되어, 봇 자체 메시지로 인한 재귀 호출이 발생하지 않습니다.
+
 ## 🏗️ 아키텍처
 
 ### 디렉터리 구조

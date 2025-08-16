@@ -44,7 +44,7 @@ rag_guidelines: |
   3. 답변 작성 시 다음을 준수하십시오:
      - **핵심 정보**를 명확하고 쉽게 요약 📝
      - 질문과 직접적으로 연결된 **규정명, 조항, 게시물 제목** 등 구체 정보 명시
-     - 응답 말미에 **참고 문서 목록**을 MarkdownV2 리스트로 명확하게 제시
+     - 참고 문서 목록은 메시지에 별도로 첨부하지 않습니다.
      - **질문이 특정 부서와 연관된 경우** 아래 형식의 링크로 해당 부서 연락처 조회 안내:
        - https://www.knue.ac.kr/www/selectSearchEmplList.do?key=444&searchKrwd={부서명}
      - 필요시, **적절한 이모지(😀📑🔗 등)를 활용**해 가독성 및 전달력을 높이십시오.
@@ -125,7 +125,7 @@ export function createDefaultRag(cfg: {
   topK?: number;
   scoreThreshold?: number;
 }) {
-  const topK = cfg.topK ?? 6;
+  const topK = cfg.topK ?? 4;
   const scoreThreshold = cfg.scoreThreshold ?? 0.2;
   const embed: EmbedFn = (q) =>
     createEmbedding({
@@ -150,6 +150,7 @@ export function createDefaultRag(cfg: {
         { role: "system", content: system },
         { role: "user", content: buildUserMessage(user, context) },
       ],
+      maxTokens: 1000,
     });
   return buildRag({
     embed,
@@ -168,11 +169,10 @@ function preprocess(q: string): string {
 function formatContext(hits: QdrantHit[]): string {
   const parts = hits.map((h, i) => {
     const p = (h.payload as any) || {};
-    // Use only title, content, file_path (with legacy fallbacks)
+    // Use only title and content
     const title: string = p.title || '무제';
     const body: string = p.content || p.chunk_text || '';
-    const src: string = p.file_path || p.url || '';
-    return `[#${i + 1}] ${title}\n${body}${src ? `\n출처: ${src}` : ''}`;
+    return `[#${i + 1}] ${title}\n${body}`;
   });
   return parts.join("\n\n");
 }
@@ -186,10 +186,10 @@ function dedupeRefs(hits: QdrantHit[]): { title?: string; url?: string }[] {
   const out: { title?: string; url?: string }[] = [];
   for (const h of hits) {
     const p = (h.payload as any) || {};
-    // Only use title and file_path for refs (fallback to url for legacy)
+    // Use only title for refs (no URL)
     const title: string | undefined = p.title;
-    const url: string | undefined = p.file_path || p.url;
-    const key = `${title ?? ''}|${url ?? ''}`;
+    const url: string | undefined = undefined;
+    const key = `${title ?? ''}`;
     if (set.has(key)) continue;
     set.add(key);
     out.push({ title, url });

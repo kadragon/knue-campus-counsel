@@ -7,7 +7,7 @@ export async function sendMessage(opts: {
   botToken: string
   disablePreview?: boolean
   fetchImpl?: FetchLike
-}) {
+}): Promise<any> {
   const {
     chatId,
     text,
@@ -29,6 +29,55 @@ export async function sendMessage(opts: {
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`Telegram sendMessage failed: ${res.status} ${text}`)
+  }
+  const json = await res.json().catch(() => ({}))
+  return json?.result ?? json
+}
+
+export async function sendChatAction(opts: {
+  chatId: number
+  action: 'typing' | 'upload_photo' | 'record_video' | 'upload_video' | 'record_voice' | 'upload_voice' | 'upload_document' | 'choose_sticker' | 'find_location' | 'record_video_note' | 'upload_video_note'
+  botToken: string
+  fetchImpl?: FetchLike
+}) {
+  const { chatId, action, botToken, fetchImpl = fetch } = opts
+  const url = `https://api.telegram.org/bot${botToken}/sendChatAction`
+  const res = await fetchWithRetry(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, action }),
+  }, { fetchImpl })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Telegram sendChatAction failed: ${res.status} ${text}`)
+  }
+  return res
+}
+
+export async function editMessageText(opts: {
+  chatId: number
+  messageId: number
+  text: string
+  botToken: string
+  disablePreview?: boolean
+  fetchImpl?: FetchLike
+}) {
+  const { chatId, messageId, text, botToken, disablePreview = true, fetchImpl = fetch } = opts
+  const url = `https://api.telegram.org/bot${botToken}/editMessageText`
+  const res = await fetchWithRetry(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'MarkdownV2',
+      disable_web_page_preview: disablePreview,
+    }),
+  }, { fetchImpl })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Telegram editMessageText failed: ${res.status} ${text}`)
   }
   return res
 }

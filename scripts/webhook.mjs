@@ -17,7 +17,7 @@ async function main() {
       console.error('Usage: webhook set <url> [secret] (or TELEGRAM_WEBHOOK_SECRET_TOKEN env)')
       process.exit(1)
     }
-    const body = { url }
+    const body = { url, allowed_updates: ['message'] }
     if (secret) {
       body.secret_token = secret
     }
@@ -69,4 +69,3 @@ async function main() {
 }
 
 main().catch((e) => { console.error(e); process.exit(1) })
-

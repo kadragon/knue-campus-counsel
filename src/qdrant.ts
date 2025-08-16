@@ -19,7 +19,12 @@ export async function qdrantSearch(opts: {
 }): Promise<QdrantHit[]> {
   const { url, apiKey, collection, vector, limit, filter, scoreThreshold, fetchImpl = fetch } = opts
   const endpoint = `${url.replace(/\/$/, '')}/collections/${encodeURIComponent(collection)}/points/search`
-  const body: any = { vector, limit, with_payload: true }
+  const body: any = {
+    vector,
+    limit,
+    // Limit payload fields to reduce payload size (use only title and content)
+    with_payload: { include: ['title', 'content'] },
+  }
   if (filter) body.filter = filter
   if (typeof scoreThreshold === 'number') body.score_threshold = scoreThreshold
   const res = await fetchWithRetry(endpoint, {

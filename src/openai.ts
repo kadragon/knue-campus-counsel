@@ -30,16 +30,17 @@ export async function chatComplete(opts: {
   model: string
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
   temperature?: number
+  maxTokens?: number
   fetchImpl?: FetchLike
 }): Promise<string> {
-  const { apiKey, model, messages, temperature = 0.2, fetchImpl = fetch } = opts
+  const { apiKey, model, messages, temperature = 0.2, maxTokens, fetchImpl = fetch } = opts
   const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages, temperature }),
+    body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
   }, { fetchImpl })
   if (!res.ok) {
     const errorText = await res.text()

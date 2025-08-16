@@ -1,6 +1,6 @@
 import { loadConfig } from './config'
 import { createDefaultRag } from './rag'
-import { sendMessage } from './telegram'
+import { sendMessage, sendChatAction, editMessageText } from './telegram'
 import { renderMarkdownToTelegramV2 as toTgMDV2, splitTelegramMessage } from './utils'
 
 export interface Env {
@@ -43,8 +43,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const text: string | undefined = msg?.text
       const chatId: number | undefined = msg?.chat?.id
       const fromId: number | undefined = msg?.from?.id
+      const isFromBot: boolean = Boolean(msg?.from?.is_bot)
 
-      if (!text || !chatId) {
+      // Ignore non-message updates and bot/self messages to prevent loops and duplicates
+      if (!msg || isFromBot || !text || !chatId) {
         console.log('No text or chatId found, ignoring')
         return new Response(null, { status: 204 })
       }
@@ -61,6 +63,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return new Response(null, { status: 200 })
       }
 
+      // Perceived latency: show typing and placeholder message
+      await sendChatAction({ chatId, action: 'typing', botToken: cfg.telegram.botToken })
+      const pendingMsg = await sendMessage({ chatId, text: toTgMDV2('답변 생성 중…'), botToken: cfg.telegram.botToken })
+      const pendingId: number | undefined = pendingMsg?.message_id
+
       const rag = createDefaultRag({
         openaiApiKey: cfg.openaiApiKey,
         qdrantUrl: cfg.qdrant.url,
@@ -71,13 +78,17 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       console.log('Calling RAG with text:', text)
       console.log('Using model:', cfg.chatModel)
       const result = await rag(text)
-      const footer = result.refs.length
-        ? ['\n\n—\n참조:', ...result.refs.map((r) => `• ${r.title ?? '무제'} | ${r.url ?? ''}`)].join('\n')
-        : ''
-      const full = `${result.answer}${footer}`
+      const full = `${result.answer}`
       const chunks = splitTelegramMessage(toTgMDV2(full), 4096)
-      for (const c of chunks) {
-        await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
+      if (pendingId && chunks.length) {
+        await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
+        for (const c of chunks.slice(1)) {
+          await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
+        }
+      } else {
+        for (const c of chunks) {
+          await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
+        }
       }
       return new Response(null, { status: 200 })
     } catch (error) {
