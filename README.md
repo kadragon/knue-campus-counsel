@@ -37,14 +37,28 @@ wrangler kv:namespace create LOGS (선택)
 ## 실행 & Webhook
 
 1) `wrangler dev --remote`로 임시 URL 확보
-2) Telegram Webhook 설정: `setWebhook`에 위 URL + `/telegram/webhook` 과 `secret_token` 전달
+2) Telegram Webhook 설정: 아래 스크립트 사용
+
+명령어:
+
+```
+# Webhook 등록
+TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET_TOKEN=... npm run webhook:set -- https://<host>/telegram/webhook
+
+# Webhook 삭제
+TELEGRAM_BOT_TOKEN=... npm run webhook:delete
+
+# Webhook 정보 조회
+TELEGRAM_BOT_TOKEN=... npm run webhook:info
+```
+
 3) DM으로 질문 전송 → 응답 확인
 
 ## 구조
 
 - `src/handler.ts`: fetch 핸들러(라우팅, webhook)
 - `src/rag.ts`: 임베딩→Qdrant→LLM→포맷 오케스트레이션
-- `src/openai.ts`, `src/qdrant.ts`, `src/telegram.ts`: 외부 API 어댑터
+- `src/openai.ts`, `src/qdrant.ts`, `src/telegram.ts`: 외부 API 어댑터 (webhook 관리 포함)
 - `src/http.ts`: 재시도/타임아웃 HTTP 유틸
 - `src/utils.ts`, `src/config.ts`: 유틸/설정 로더
 
@@ -52,4 +66,3 @@ wrangler kv:namespace create LOGS (선택)
 
 - Vitest 기반 단위/통합 테스트
 - fetch 목킹으로 네트워크 없이 실행 가능
-
