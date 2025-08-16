@@ -8,11 +8,10 @@ enabled = true
 [vars]
 LOG_LEVEL = "info"
 
-[[env.dev]]
-route = ""
+[env.dev]
 workers_dev = true
+vars = { LOG_LEVEL = "debug" }
 
-[[env.production]]
-route = ""
+[env.production]
 workers_dev = false
-
+vars = { LOG_LEVEL = "info" }
