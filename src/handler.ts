@@ -26,12 +26,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
   if (request.method === 'POST' && url.pathname === '/telegram/webhook') {
     const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+    console.log('Received secret:', secret)
+    console.log('Expected secret:', env.TELEGRAM_WEBHOOK_SECRET_TOKEN)
+    console.log('Secret length:', env.TELEGRAM_WEBHOOK_SECRET_TOKEN?.length || 0)
     if (!secret || secret !== env.TELEGRAM_WEBHOOK_SECRET_TOKEN) {
+      console.error('Webhook secret validation failed')
       return new Response('unauthorized', { status: 401 })
     }
     // Minimal acceptance: parse body to ensure JSON
     try {
       const update = await request.json() as any
+      console.log('Received webhook update:', JSON.stringify(update, null, 2))
+      
       const cfg = loadConfig(env)
       const msg = update?.message
       const text: string | undefined = msg?.text
@@ -39,6 +45,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const fromId: number | undefined = msg?.from?.id
 
       if (!text || !chatId) {
+        console.log('No text or chatId found, ignoring')
         return new Response(null, { status: 204 })
       }
 
@@ -61,6 +68,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         qdrantCollection: cfg.qdrant.collection,
         model: cfg.chatModel,
       })
+      console.log('Calling RAG with text:', text)
+      console.log('Using model:', cfg.chatModel)
       const result = await rag(text)
       const footer = result.refs.length
         ? ['\n\n—\n참조:', ...result.refs.map((r) => `• ${r.title ?? '무제'} | ${r.url ?? ''}`)].join('\n')
@@ -71,7 +80,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
       }
       return new Response(null, { status: 200 })
-    } catch {
+    } catch (error) {
+      console.error('Webhook processing error:', error)
       return new Response('bad request', { status: 400 })
     }
   }

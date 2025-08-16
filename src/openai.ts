@@ -16,7 +16,11 @@ export async function createEmbedding(opts: {
     },
     body: JSON.stringify({ input, model }),
   }, { fetchImpl })
-  if (!res.ok) throw new Error(`OpenAI embeddings error: ${res.status}`)
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error('OpenAI embeddings API error:', res.status, errorText)
+    throw new Error(`OpenAI embeddings error: ${res.status} - ${errorText}`)
+  }
   const json = await res.json() as any
   return json.data?.[0]?.embedding ?? []
 }
@@ -37,7 +41,11 @@ export async function chatComplete(opts: {
     },
     body: JSON.stringify({ model, messages, temperature }),
   }, { fetchImpl })
-  if (!res.ok) throw new Error(`OpenAI chat error: ${res.status}`)
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error('OpenAI chat API error:', res.status, errorText)
+    throw new Error(`OpenAI chat error: ${res.status} - ${errorText}`)
+  }
   const json = await res.json() as any
   return json.choices?.[0]?.message?.content ?? ''
 }

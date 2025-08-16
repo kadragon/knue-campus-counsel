@@ -13,14 +13,18 @@ async function main() {
   if (cmd === 'set') {
     const url = process.argv[3]
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN || process.argv[4]
-    if (!url || !secret) {
+    if (!url) {
       console.error('Usage: webhook set <url> [secret] (or TELEGRAM_WEBHOOK_SECRET_TOKEN env)')
       process.exit(1)
+    }
+    const body = { url }
+    if (secret) {
+      body.secret_token = secret
     }
     const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ url, secret_token: secret })
+      body: JSON.stringify(body)
     })
     const json = await res.json().catch(() => ({}))
     if (!res.ok || !json.ok) {

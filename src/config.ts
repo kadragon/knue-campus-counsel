@@ -16,7 +16,7 @@ export function loadConfig(env: Env): AppConfig {
     'QDRANT_API_KEY',
     // QDRANT_COLLECTION 또는 COLLECTION_NAME 중 하나 필요
     'TELEGRAM_BOT_TOKEN',
-    'TELEGRAM_WEBHOOK_SECRET_TOKEN',
+    // 'TELEGRAM_WEBHOOK_SECRET_TOKEN', // Optional for now
   ] as const
 
   const missing = required.filter((k) => !(env as any)[k])
@@ -30,7 +30,7 @@ export function loadConfig(env: Env): AppConfig {
   const collection = (env as any).QDRANT_COLLECTION || (env as any).COLLECTION_NAME
   if (!qdrantUrl) throw new Error('Missing QDRANT_URL or QDRANT_CLOUD_URL')
   if (!collection) throw new Error('Missing QDRANT_COLLECTION or COLLECTION_NAME')
-  const chatModel = (env as any).OPENAI_CHAT_MODEL || 'gpt-5-mini'
+  const chatModel = (env as any).OPENAI_CHAT_MODEL || 'gpt-4o-mini'
   return {
     openaiApiKey: env.OPENAI_API_KEY,
     qdrant: {
@@ -40,7 +40,7 @@ export function loadConfig(env: Env): AppConfig {
     },
     telegram: {
       botToken: env.TELEGRAM_BOT_TOKEN,
-      webhookSecret: env.TELEGRAM_WEBHOOK_SECRET_TOKEN,
+      webhookSecret: env.TELEGRAM_WEBHOOK_SECRET_TOKEN || '',
     },
     allowedUserIds,
     logLevel: log,
