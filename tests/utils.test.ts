@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { splitTelegramMessage, escapeHtml } from '../src/utils'
+import { splitTelegramMessage, escapeHtml, escapeMarkdownV2 } from '../src/utils'
 
 describe('utils.splitTelegramMessage', () => {
   it('splits text into <=4096 chunks preserving words', () => {
@@ -25,10 +25,24 @@ describe('utils.splitTelegramMessage', () => {
   })
 })
 
-describe('utils.escapeHtml', () => {
-  it(`escapes &, <, >, ", ' for Telegram HTML`, () => {
-    const raw = "&<>\"'"
+describe('utils.escapeMarkdownV2', () => {
+  it('escapes special characters for Telegram MarkdownV2', () => {
+    const raw = "_*[]()~`>#+-=|{}.!"
+    const escaped = escapeMarkdownV2(raw)
+    expect(escaped).toBe('\\_\\*\\[\\]\\(\\)\\~\\`\\>\\#\\+\\-\\=\\|\\{\\}\\.\\!')
+  })
+
+  it('escapes backslashes correctly', () => {
+    const raw = "\\test\\"
+    const escaped = escapeMarkdownV2(raw)
+    expect(escaped).toBe('\\\\test\\\\')
+  })
+})
+
+describe('utils.escapeHtml (legacy)', () => {
+  it('redirects to escapeMarkdownV2 for backward compatibility', () => {
+    const raw = "_*[]"
     const escaped = escapeHtml(raw)
-    expect(escaped).toBe('&amp;&lt;&gt;&quot;&#39;')
+    expect(escaped).toBe('\\_\\*\\[\\]')
   })
 })

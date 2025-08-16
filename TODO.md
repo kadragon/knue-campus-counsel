@@ -14,46 +14,47 @@
 - [ ] GitHub 리포지토리/Actions 사용할 경우 권한/시크릿 설정 준비
 - [ ] 운영/개발 환경 구분: `dev` / `production` 네이밍 합의
 
-## 1) 리포지토리 초기화 및 구조
-- [ ] Cloudflare Workers TypeScript 프로젝트 부트스트랩 (`wrangler init --type=typescript`)
-- [ ] 디렉터리 구조 정의
-  - [ ] `src/handler.ts` (메인 fetch 핸들러, 라우팅)
-  - [ ] `src/telegram.ts` (Webhook 파서, 응답 전송 유틸)
-  - [ ] `src/rag.ts` (오케스트레이션: 임베딩 → 검색 → LLM → 포맷)
-  - [ ] `src/qdrant.ts` (Qdrant 검색 클라이언트)
-  - [ ] `src/openai.ts` (임베딩/LLM 호출 래퍼)
-  - [ ] `src/utils.ts` (메시지 분할, 포맷, 에러/재시도 등)
-  - [ ] `src/config.ts` (환경변수 로딩/검증)
-  - [ ] `src/types.ts` (타입 정의: Telegram Update, RAG 결과 등)
-- [ ] `tsconfig.json` 조정 (Workers 타겟, 모듈 해석, noEmit 등)
-- [ ] 최소 종속성만 채택 (추가 라이브러리 지양, `undici` 불필요: Workers `fetch` 사용)
+## 1) 리포지토리 초기화 및 구조 ✅
+- [x] Cloudflare Workers TypeScript 프로젝트 부트스트랩 (`wrangler init --type=typescript`)
+- [x] 디렉터리 구조 정의
+  - [x] `src/handler.ts` (메인 fetch 핸들러, 라우팅)
+  - [x] `src/telegram.ts` (Webhook 파서, 응답 전송 유틸)
+  - [x] `src/rag.ts` (오케스트레이션: 임베딩 → 검색 → LLM → 포맷)
+  - [x] `src/qdrant.ts` (Qdrant 검색 클라이언트)
+  - [x] `src/openai.ts` (임베딩/LLM 호출 래퍼)
+  - [x] `src/utils.ts` (메시지 분할, 포맷, 에러/재시도 등)
+  - [x] `src/config.ts` (환경변수 로딩/검증)
+  - [x] `src/types.ts` (타입 정의: Telegram Update, RAG 결과 등)
+- [x] `tsconfig.json` 조정 (Workers 타겟, 모듈 해석, noEmit 등)
+- [x] 최소 종속성만 채택 (추가 라이브러리 지양, `undici` 불필요: Workers `fetch` 사용)
 
 ## 2) 설정/시크릿/스토리지
-- [ ] `wrangler.toml` 작성
-  - [ ] `name`, `main`, `compatibility_date`
-  - [ ] `routes` 또는 `workers.dev` 서브도메인 사용 결정
+- [x] `wrangler.toml` 작성
+  - [x] `name`, `main`, `compatibility_date`
+  - [x] `routes` 또는 `workers.dev` 서브도메인 사용 결정
   - [ ] `kv_namespaces` (선택: 로그/레이트리밋 용도) 정의
-  - [ ] 환경 분리 `[[env.dev]]`, `[[env.production]]`
+  - [x] 환경 분리 `[[env.dev]]`, `[[env.production]]`
 - [ ] Secrets 등록 (`wrangler secret put ...`)
   - [ ] `OPENAI_API_KEY`
   - [ ] `TELEGRAM_BOT_TOKEN`
   - [ ] `TELEGRAM_WEBHOOK_SECRET_TOKEN`
   - [ ] `QDRANT_API_KEY`
-- [ ] Vars/환경변수 정의 (wrangler `vars` 또는 코드에서 상수)
-  - [ ] `QDRANT_URL`, `QDRANT_COLLECTION`
-  - [ ] `ALLOWED_USER_IDS` (쉼표 구분 화이트리스트)
-  - [ ] `LOG_LEVEL` (`info|debug|error`)
+- [x] Vars/환경변수 정의 (wrangler `vars` 또는 코드에서 상수)
+  - [x] `QDRANT_URL`, `QDRANT_COLLECTION` (knue_policies)
+  - [x] `ALLOWED_USER_IDS` (쉼표 구분 화이트리스트)
+  - [x] `LOG_LEVEL` (`info|debug|error`)
+  - [x] `OPENAI_CHAT_MODEL` (gpt-4o)
   - [ ] (선택) `SENTRY_DSN` 또는 외부 로깅 엔드포인트
 - [ ] (선택) KV 네임스페이스 생성: `LOGS`, `RATELIMIT`
 
-## 3) Telegram Webhook 엔드포인트
-- [ ] `fetch` 핸들러에서 `POST /telegram/webhook` 라우팅
-- [ ] `X-Telegram-Bot-Api-Secret-Token` 검증 (시크릿 토큰 일치 확인)
-- [ ] Update 파싱: `message.text` 지원 (기타 타입은 무시/확장 여지)
-- [ ] 화이트리스트 검사: `ALLOWED_USER_IDS` 불일치 시 응답 거절
-- [ ] 기본 커맨드 처리: `/start`, `/help`
-- [ ] 그룹/채널 메시지 처리 정책 결정 (초기엔 1:1 DM만 허용)
-- [ ] 에러 응답 기본 메시지 정의 (장애 시 사용자 공지)
+## 3) Telegram Webhook 엔드포인트 ✅
+- [x] `fetch` 핸들러에서 `POST /telegram/webhook` 라우팅
+- [x] `X-Telegram-Bot-Api-Secret-Token` 검증 (시크릿 토큰 일치 확인)
+- [x] Update 파싱: `message.text` 지원 (기타 타입은 무시/확장 여지)
+- [x] 화이트리스트 검사: `ALLOWED_USER_IDS` 불일치 시 응답 거절
+- [x] 기본 커맨드 처리: `/start`, `/help`
+- [x] 그룹/채널 메시지 처리 정책 결정 (초기엔 1:1 DM만 허용)
+- [x] 에러 응답 기본 메시지 정의 (장애 시 사용자 공지)
 
 ## 4) RAG 파이프라인 (경량 구현)
 - [ ] 쿼리 전처리: 트리밍, 정규화, 길이 제한

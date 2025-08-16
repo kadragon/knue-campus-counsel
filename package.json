@@ -6,13 +6,18 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ui": "vitest --ui",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm run test",
     "webhook:set": "node scripts/webhook.mjs set",
     "webhook:delete": "node scripts/webhook.mjs delete",
     "webhook:info": "node scripts/webhook.mjs info"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=18.18"
   }
 }

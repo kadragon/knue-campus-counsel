@@ -1,68 +1,160 @@
-# KNUE Campus Counsel (MVP)
+# KNUE Campus Counsel
 
-Cloudflare Workers 기반의 한국교원대학교 규정/지침 RAG 텔레그램 챗봇.
+한국교원대학교 규정/지침 RAG 기반 Telegram 챗봇 - Cloudflare Workers로 구현된 MVP
 
-## 개발
+## 🚀 Quick Start
 
-- 설치: `npm i`
-- 테스트: `npm run test`
-- 타입체크: `npm run typecheck`
+### 개발 환경 설정
 
-## 환경 변수
+```bash
+# 의존성 설치
+npm install
 
-Workers Secrets (민감정보):
-- `OPENAI_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_WEBHOOK_SECRET_TOKEN`
-- `QDRANT_API_KEY`
+# 타입 체크 & 테스트
+npm run check
 
-Workers Vars (비민감):
-- `QDRANT_URL` 또는 `QDRANT_CLOUD_URL`
-- `QDRANT_COLLECTION` 또는 `COLLECTION_NAME`
-- `OPENAI_CHAT_MODEL` (기본: `gpt-5-mini`)
-- `ALLOWED_USER_IDS` (쉼표 구분, 선택)
-- `LOG_LEVEL` (`debug|info|error`)
-
-등록 예시:
-
+# 개발 서버 실행 (로컬)
+wrangler dev --remote
 ```
+
+### 배포
+
+```bash
+# 프로덕션 배포
+wrangler deploy
+```
+
+## 📋 환경 변수
+
+### Workers Secrets (민감 정보)
+다음 명령어로 등록:
+
+```bash
 wrangler secret put OPENAI_API_KEY
-wrangler secret put TELEGRAM_BOT_TOKEN
+wrangler secret put TELEGRAM_BOT_TOKEN  
 wrangler secret put TELEGRAM_WEBHOOK_SECRET_TOKEN
 wrangler secret put QDRANT_API_KEY
-
-wrangler kv:namespace create LOGS (선택)
 ```
 
-## 실행 & Webhook
+### Workers Vars (비민감 정보)
+`wrangler.toml`에 설정됨:
 
-1) `wrangler dev --remote`로 임시 URL 확보
-2) Telegram Webhook 설정: 아래 스크립트 사용
+- `QDRANT_CLOUD_URL`: Qdrant Cloud 엔드포인트 URL
+- `QDRANT_COLLECTION`: 컬렉션 이름 (기본: `knue_policies`)
+- `OPENAI_CHAT_MODEL`: 채팅 모델 (기본: `gpt-5-mini`)
+- `ALLOWED_USER_IDS`: 허용된 사용자 ID 목록 (쉼표 구분, 선택)
+- `LOG_LEVEL`: 로그 레벨 (`debug|info|error`)
 
-명령어:
+## 🔗 Webhook 설정
 
-```
+```bash
 # Webhook 등록
-TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET_TOKEN=... npm run webhook:set -- https://<host>/telegram/webhook
+npm run webhook:set -- https://knue-campus-counsel.kangdongouk.workers.dev/telegram/webhook
 
 # Webhook 삭제
-TELEGRAM_BOT_TOKEN=... npm run webhook:delete
+npm run webhook:delete
 
-# Webhook 정보 조회
-TELEGRAM_BOT_TOKEN=... npm run webhook:info
+# Webhook 정보 확인
+npm run webhook:info
 ```
 
-3) DM으로 질문 전송 → 응답 확인
+## 🏗️ 아키텍처
 
-## 구조
+### 디렉터리 구조
+```
+src/
+├── handler.ts      # 메인 fetch 핸들러, 라우팅
+├── config.ts       # 환경변수 로딩/검증
+├── types.ts        # TypeScript 타입 정의
+├── telegram.ts     # Telegram API 래퍼 (메시지 전송, webhook 관리)
+├── rag.ts          # RAG 파이프라인 오케스트레이션
+├── openai.ts       # OpenAI API 클라이언트 (임베딩, 채팅)
+├── qdrant.ts       # Qdrant 벡터 검색 클라이언트
+├── http.ts         # HTTP 유틸리티 (재시도, 타임아웃)
+└── utils.ts        # 유틸리티 함수 (로깅, 메시지 분할 등)
+```
 
-- `src/handler.ts`: fetch 핸들러(라우팅, webhook)
-- `src/rag.ts`: 임베딩→Qdrant→LLM→포맷 오케스트레이션
-- `src/openai.ts`, `src/qdrant.ts`, `src/telegram.ts`: 외부 API 어댑터 (webhook 관리 포함)
-- `src/http.ts`: 재시도/타임아웃 HTTP 유틸
-- `src/utils.ts`, `src/config.ts`: 유틸/설정 로더
+### 데이터 플로우
+1. **Telegram Webhook** → `POST /telegram/webhook`
+2. **요청 검증** → Secret token 확인, 사용자 화이트리스트
+3. **RAG 파이프라인**:
+   - 쿼리 전처리 (트리밍, 길이 제한)
+   - OpenAI 임베딩 생성 (`text-embedding-3-large`)
+   - Qdrant 벡터 검색 (top-6, score ≥ 0.2)
+   - OpenAI 채팅 완성 (컨텍스트 포함)
+   - 응답 후처리 (출처 집계, 메시지 분할)
+4. **응답 전송** → Telegram `sendMessage`
 
-## 테스트 전략
+## 🧪 테스트
 
-- Vitest 기반 단위/통합 테스트
-- fetch 목킹으로 네트워크 없이 실행 가능
+```bash
+# 전체 테스트 실행
+npm test
+
+# 타입 체크
+npm run typecheck
+
+# 테스트 + 타입 체크
+npm run check
+
+# 테스트 감시 모드
+npm run test:watch
+```
+
+### 테스트 전략
+- **단위 테스트**: 유틸리티 함수, 메시지 포맷팅
+- **통합 테스트**: RAG 파이프라인 (모의 OpenAI/Qdrant)
+- **E2E 테스트**: Webhook 엔드포인트 테스트
+- **에러 시나리오**: 재시도, 타임아웃, 429 오류
+
+## 🚀 배포
+
+### CI/CD 파이프라인
+GitHub Actions를 통한 자동 배포:
+
+- **main merge**: 자동 배포
+
+### 수동 배포
+```bash
+# 프로덕션 배포
+wrangler deploy
+```
+
+## 📊 모니터링
+
+### 헬스체크
+```bash
+curl https://knue-campus-counsel.kangdongouk.workers.dev/healthz
+```
+
+### 로그 모니터링
+```bash
+# 실시간 로그 확인
+wrangler tail --format pretty
+```
+
+## 🔧 설정
+
+### Qdrant 컬렉션 정보
+- **컬렉션**: `knue_policies`
+- **벡터 차원**: 3072 (text-embedding-3-large)
+- **거리 함수**: Cosine
+- **문서 수**: 723개
+
+### OpenAI 모델
+- **임베딩**: `text-embedding-3-large`
+- **채팅**: `gpt-5-mini`
+
+## 🔒 보안
+
+- **비밀 관리**: Cloudflare Workers Secrets 사용
+- **Webhook 검증**: `X-Telegram-Bot-Api-Secret-Token` 필수
+- **사용자 제한**: `ALLOWED_USER_IDS` 화이트리스트 (선택)
+- **로그 마스킹**: 민감 정보 자동 마스킹
+
+## ⚠️ 제한사항
+
+- Telegram 메시지 최대 4096자 (자동 분할 처리)
+- OpenAI API 비용 고려 필요
+- Qdrant Cloud 무료 플랜 제한
+- 사용자별 레이트 리밋 미구현 (향후 KV 기반 추가 예정)

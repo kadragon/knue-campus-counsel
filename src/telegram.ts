@@ -22,7 +22,7 @@ export async function sendMessage(opts: {
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: 'HTML',
+      parse_mode: 'MarkdownV2',
       disable_web_page_preview: disablePreview,
     }),
   }, { fetchImpl })

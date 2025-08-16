@@ -7,11 +7,6 @@ enabled = true
 
 [vars]
 LOG_LEVEL = "info"
-
-[env.dev]
-workers_dev = true
-vars = { LOG_LEVEL = "debug" }
-
-[env.production]
-workers_dev = false
-vars = { LOG_LEVEL = "info" }
+QDRANT_COLLECTION = "knue_policies"
+QDRANT_CLOUD_URL = "https://eb41d84d-297a-456d-944a-3bd1d061182b.us-east4-0.gcp.cloud.qdrant.io"
+OPENAI_CHAT_MODEL = "gpt-5-mini"
