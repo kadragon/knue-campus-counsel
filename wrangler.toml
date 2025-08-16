@@ -1,0 +1,18 @@
+name = "knue-campus-counsel"
+main = "src/handler.ts"
+compatibility_date = "2024-08-16"
+
+[observability]
+enabled = true
+
+[vars]
+LOG_LEVEL = "info"
+
+[[env.dev]]
+route = ""
+workers_dev = true
+
+[[env.production]]
+route = ""
+workers_dev = false
+

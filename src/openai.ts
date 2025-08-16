@@ -1,0 +1,43 @@
+type FetchLike = typeof fetch
+
+export async function createEmbedding(opts: {
+  apiKey: string
+  input: string | string[]
+  model: string
+  fetchImpl?: FetchLike
+}): Promise<number[]> {
+  const { apiKey, input, model, fetchImpl = fetch } = opts
+  const res = await fetchImpl('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ input, model }),
+  })
+  if (!res.ok) throw new Error(`OpenAI embeddings error: ${res.status}`)
+  const json = await res.json() as any
+  return json.data?.[0]?.embedding ?? []
+}
+
+export async function chatComplete(opts: {
+  apiKey: string
+  model: string
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
+  temperature?: number
+  fetchImpl?: FetchLike
+}): Promise<string> {
+  const { apiKey, model, messages, temperature = 0.2, fetchImpl = fetch } = opts
+  const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model, messages, temperature }),
+  })
+  if (!res.ok) throw new Error(`OpenAI chat error: ${res.status}`)
+  const json = await res.json() as any
+  return json.choices?.[0]?.message?.content ?? ''
+}
+
