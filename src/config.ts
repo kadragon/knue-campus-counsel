@@ -30,7 +30,7 @@ export function loadConfig(env: Env): AppConfig {
   const collection = (env as any).QDRANT_COLLECTION || (env as any).COLLECTION_NAME
   if (!qdrantUrl) throw new Error('Missing QDRANT_URL or QDRANT_CLOUD_URL')
   if (!collection) throw new Error('Missing QDRANT_COLLECTION or COLLECTION_NAME')
-  const chatModel = (env as any).OPENAI_CHAT_MODEL || 'gpt-4o-mini'
+  const chatModel = (env as any).OPENAI_CHAT_MODEL || 'gpt-4.1-mini'
   return {
     openaiApiKey: env.OPENAI_API_KEY,
     qdrant: {

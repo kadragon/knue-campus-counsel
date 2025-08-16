@@ -168,10 +168,11 @@ function preprocess(q: string): string {
 function formatContext(hits: QdrantHit[]): string {
   const parts = hits.map((h, i) => {
     const p = (h.payload as any) || {};
-    const title = p.title || "무제";
-    const chunk = p.chunk_text || "";
-    const article = p.article_no ? `제${p.article_no}조` : "";
-    return `[#${i + 1}] ${title} ${article}\n${chunk}`;
+    // Use only title, content, file_path (with legacy fallbacks)
+    const title: string = p.title || '무제';
+    const body: string = p.content || p.chunk_text || '';
+    const src: string = p.file_path || p.url || '';
+    return `[#${i + 1}] ${title}\n${body}${src ? `\n출처: ${src}` : ''}`;
   });
   return parts.join("\n\n");
 }
@@ -185,10 +186,13 @@ function dedupeRefs(hits: QdrantHit[]): { title?: string; url?: string }[] {
   const out: { title?: string; url?: string }[] = [];
   for (const h of hits) {
     const p = (h.payload as any) || {};
-    const key = `${p.title}|${p.url}`;
+    // Only use title and file_path for refs (fallback to url for legacy)
+    const title: string | undefined = p.title;
+    const url: string | undefined = p.file_path || p.url;
+    const key = `${title ?? ''}|${url ?? ''}`;
     if (set.has(key)) continue;
     set.add(key);
-    out.push({ title: p.title, url: p.url });
+    out.push({ title, url });
   }
   return out;
 }

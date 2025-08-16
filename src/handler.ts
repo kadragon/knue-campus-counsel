@@ -1,7 +1,7 @@
 import { loadConfig } from './config'
 import { createDefaultRag } from './rag'
 import { sendMessage } from './telegram'
-import { escapeHtml, splitTelegramMessage } from './utils'
+import { renderMarkdownToTelegramV2 as toTgMDV2, splitTelegramMessage } from './utils'
 
 export interface Env {
   OPENAI_API_KEY: string
@@ -57,7 +57,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       // simple commands
       if (text === '/start' || text === '/help') {
         const reply = '안녕하세요! 규정/지침 근거 기반으로 답변해 드립니다. 질문을 보내주세요.'
-        await sendMessage({ chatId, text: escapeHtml(reply), botToken: cfg.telegram.botToken })
+        await sendMessage({ chatId, text: toTgMDV2(reply), botToken: cfg.telegram.botToken })
         return new Response(null, { status: 200 })
       }
 
@@ -75,7 +75,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         ? ['\n\n—\n참조:', ...result.refs.map((r) => `• ${r.title ?? '무제'} | ${r.url ?? ''}`)].join('\n')
         : ''
       const full = `${result.answer}${footer}`
-      const chunks = splitTelegramMessage(escapeHtml(full), 4096)
+      const chunks = splitTelegramMessage(toTgMDV2(full), 4096)
       for (const c of chunks) {
         await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
       }

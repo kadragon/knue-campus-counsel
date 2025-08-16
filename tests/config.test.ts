@@ -42,8 +42,8 @@ describe('config.loadConfig', () => {
     expect(cfg.qdrant.collection).toBe('knue_policies')
   })
 
-  it('sets default chat model to gpt-5-mini when unspecified', () => {
+  it('sets default chat model to gpt-4.1-mini when unspecified', () => {
     const cfg = loadConfig(base as any)
-    expect(cfg.chatModel).toBe('gpt-5-mini')
+    expect(cfg.chatModel).toBe('gpt-4.1-mini')
   })
 })
