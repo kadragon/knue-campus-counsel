@@ -179,3 +179,28 @@
 2) 해당 URL로 Telegram `setWebhook`(secret_token 포함)
 3) DM으로 질의 전송 → 응답 및 로그 확인
 
+
+## 16) Known Potential Issues & Actions
+
+- [ ] Qdrant payload mismatch → include required fields
+  - Action: In `src/qdrant.ts`, expand `with_payload` to `['title','content','chunk_text','source','link','url','github_url']` (or `true`), and in `src/rag.ts` prefer `p.link ?? p.url` for links. Add tests for `url`-only payloads.
+- [ ] Make board collection configurable
+  - Action: Add `BOARD_COLLECTION` env (wrangler vars + `src/config.ts`) and pass to `createEnhancedRag` instead of hard-coded `'www-board-data'`. Update README and tests.
+- [ ] README model default mismatch
+  - Action: Align docs to `OPENAI_CHAT_MODEL = gpt-4.1-mini` (current default), and document the new `/kakao` endpoint usage and headers.
+- [ ] Logging PII and verbosity
+  - Action: Avoid logging full Telegram updates unless `LOG_LEVEL=debug`. Use `maskSensitive` and structured logs in `src/handler.ts`. Ensure user identifiers are minimized.
+- [ ] Telegram edit fallback
+  - Action: Wrap `editMessageText` in try/catch; on failure send a new message with the final text to avoid silent drops.
+- [ ] Basic rate limiting
+  - Action: Implement simple per-user throttling (KV `RATELIMIT` or in-memory Map) to prevent spam; expose toggle via env.
+- [ ] Secrets hygiene (.env)
+  - Action: Rotate any exposed tokens; keep secrets only in Wrangler; add `.env.example` with placeholders; update README to discourage real secrets in `.env`.
+- [ ] HTML renderer robustness
+  - Action: Review `renderMarkdownToTelegramHTML` for nested/edge markdown; limit to a safe tag set; add tests for nested formatting and mixed content.
+- [ ] RAG reference correctness
+  - Action: Ensure board links use actual `link/url` and policy items fall back to the policy page. Add an assertion in integration tests that at least one reference contains a URL when board hits exist.
+- [ ] Error handling consistency
+  - Action: Unify user-facing errors for OpenAI/Qdrant timeouts/429. Verify retry/backoff paths in integration tests.
+- [ ] Webhook secret docs
+  - Action: Confirm README documents unified `WEBHOOK_SECRET_TOKEN` and both headers: `X-Telegram-Bot-Api-Secret-Token`, `X-Kakao-Webhook-Secret-Token`.

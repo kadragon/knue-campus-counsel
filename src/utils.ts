@@ -299,3 +299,26 @@ export function maskSensitive(data: any): any {
   
   return masked
 }
+
+// Minimal in-memory rate limiter (per isolate)
+const rlBuckets: Map<string, number[]> = new Map()
+
+/**
+ * Allow at most `max` requests within `windowMs` per key.
+ * Returns whether allowed and suggested retry-after seconds.
+ */
+export function allowRequest(key: string, windowMs: number, max: number): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now()
+  const windowStart = now - windowMs
+  const arr = rlBuckets.get(key) ?? []
+  // prune old
+  const recent = arr.filter((t) => t > windowStart)
+  if (recent.length >= max) {
+    const oldest = Math.min(...recent)
+    const retryAfterMs = windowMs - (now - oldest)
+    return { allowed: false, retryAfterSec: Math.max(1, Math.ceil(retryAfterMs / 1000)) }
+  }
+  recent.push(now)
+  rlBuckets.set(key, recent)
+  return { allowed: true, retryAfterSec: 0 }
+}

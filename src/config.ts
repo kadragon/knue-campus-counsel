@@ -2,12 +2,13 @@ import type { Env } from './handler'
 
 export type AppConfig = {
   openaiApiKey: string
-  qdrant: { url: string; apiKey: string; collection: string }
+  qdrant: { url: string; apiKey: string; collection: string; boardCollection: string }
   telegram: { botToken: string; webhookSecret: string }
   allowedUserIds: Set<number> | undefined
   logLevel: 'info' | 'debug' | 'error'
   chatModel: string
   rag: { boardTopK: number; policyTopK: number }
+  rateLimit: { windowMs: number; max: number }
 }
 
 export function loadConfig(env: Env): AppConfig {
@@ -29,11 +30,14 @@ export function loadConfig(env: Env): AppConfig {
   const log = (env.LOG_LEVEL as any) || 'info'
   const qdrantUrl = (env as any).QDRANT_URL || (env as any).QDRANT_CLOUD_URL
   const collection = (env as any).QDRANT_COLLECTION || (env as any).COLLECTION_NAME
+  const boardCollection = (env as any).BOARD_COLLECTION || 'www-board-data'
   if (!qdrantUrl) throw new Error('Missing QDRANT_URL or QDRANT_CLOUD_URL')
   if (!collection) throw new Error('Missing QDRANT_COLLECTION or COLLECTION_NAME')
   const chatModel = (env as any).OPENAI_CHAT_MODEL || 'gpt-4.1-mini'
   const boardTopK = parseInt((env as any).BOARD_COLLECTION_TOP_K || '2', 10)
   const policyTopK = parseInt((env as any).POLICY_COLLECTION_TOP_K || '3', 10)
+  const rlWindowMs = parseInt((env as any).RATE_LIMIT_WINDOW_MS || '5000', 10)
+  const rlMax = parseInt((env as any).RATE_LIMIT_MAX || '1', 10)
   
   return {
     openaiApiKey: env.OPENAI_API_KEY,
@@ -41,6 +45,7 @@ export function loadConfig(env: Env): AppConfig {
       url: qdrantUrl,
       apiKey: env.QDRANT_API_KEY,
       collection,
+      boardCollection,
     },
     telegram: {
       botToken: env.TELEGRAM_BOT_TOKEN,
@@ -53,6 +58,7 @@ export function loadConfig(env: Env): AppConfig {
       boardTopK,
       policyTopK,
     },
+    rateLimit: { windowMs: rlWindowMs, max: rlMax },
   }
 }
 

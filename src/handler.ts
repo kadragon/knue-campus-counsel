@@ -1,7 +1,7 @@
 import { loadConfig } from './config'
 import { createEnhancedRag } from './rag'
 import { sendMessage, sendChatAction, editMessageText } from './telegram'
-import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage } from './utils'
+import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from './utils'
 
 export interface Env {
   OPENAI_API_KEY: string
@@ -40,9 +40,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     // Minimal acceptance: parse body to ensure JSON
     try {
       const update = await request.json() as any
-      console.log('Received webhook update:', JSON.stringify(update, null, 2))
-      
       const cfg = loadConfig(env)
+      if (cfg.logLevel === 'debug') {
+        console.log('Received webhook update:', JSON.stringify(update, null, 2))
+      }
+      
       const msg = update?.message
       const text: string | undefined = msg?.text
       const chatId: number | undefined = msg?.chat?.id
@@ -60,6 +62,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return new Response(null, { status: 204 })
       }
 
+      // rate limiting per user
+      const rlKey = fromId ? `tg:${fromId}` : (chatId ? `tg-chat:${chatId}` : 'tg:unknown')
+      const rl = allowRequest(rlKey, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+      if (!rl.allowed) {
+        if (cfg.logLevel === 'debug') console.log('Rate limited:', rlKey, rl)
+        // avoid extra messages; silently drop
+        return new Response(null, { status: 204, headers: { 'Retry-After': String(rl.retryAfterSec) } })
+      }
+
       // simple commands
       if (text === '/start' || text === '/help') {
         const reply = '안녕하세요! 규정/지침 근거 기반으로 답변해 드립니다. 질문을 보내주세요.'
@@ -72,13 +83,20 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const pendingMsg = await sendMessage({ chatId, text: toTgHTML('답변 생성 중…'), botToken: cfg.telegram.botToken })
       const pendingId: number | undefined = pendingMsg?.message_id
 
-      console.log('Calling RAG with text:', text)
-      console.log('Using model:', cfg.chatModel)
+      if (cfg.logLevel === 'debug') {
+        console.log('Calling RAG with text:', text)
+        console.log('Using model:', cfg.chatModel)
+      }
       const result = await getRagAnswer(text, cfg)
       const full = `${result.answer}`
       const chunks = splitTelegramMessage(toTgHTML(full), 4096)
       if (pendingId && chunks.length) {
-        await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
+        try {
+          await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
+        } catch (e) {
+          // Fallback: send as a new message if edit fails
+          await sendMessage({ chatId, text: chunks[0], botToken: cfg.telegram.botToken })
+        }
         for (const c of chunks.slice(1)) {
           await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
         }
@@ -111,7 +129,7 @@ async function getRagAnswer(question: string, cfg: any) {
     qdrantUrl: cfg.qdrant.url,
     qdrantApiKey: cfg.qdrant.apiKey,
     qdrantCollection: cfg.qdrant.collection,
-    boardCollection: 'www-board-data',
+    boardCollection: cfg.qdrant.boardCollection,
     model: cfg.chatModel,
     boardTopK: cfg.rag.boardTopK,
     policyTopK: cfg.rag.policyTopK,
@@ -143,6 +161,28 @@ async function handleKakaoRequest(request: Request, env: Env): Promise<Response>
 
     const body = await request.json() as KakaoRequest
     const question = body?.action?.params?.question?.trim() || body?.userRequest?.utterance?.trim()
+
+    // rate limiting per kakao user when available
+    const kakaoUserId = body?.userRequest?.user?.id
+    if (kakaoUserId) {
+      const cfg = loadConfig(env)
+      const rl = allowRequest(`kk:${kakaoUserId}`, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+      if (!rl.allowed) {
+        return new Response(
+          JSON.stringify({
+            version: "2.0",
+            template: {
+              outputs: [{
+                simpleText: {
+                  text: "요청이 많습니다. 잠시 후 다시 시도해주세요."
+                }
+              }]
+            }
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfterSec) } }
+        )
+      }
+    }
 
     if (!question) {
       return new Response(

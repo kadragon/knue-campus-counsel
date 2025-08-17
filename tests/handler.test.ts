@@ -219,6 +219,31 @@ describe('handler', () => {
       const res = await handleRequest(req, makeEnv())
       expect(res.status).toBe(200) // RAG 함수가 실제로는 동작하지 않아서 에러가 날 수도 있지만 구조는 정상
     })
+
+    it('rate limits repeated kakao requests per user', async () => {
+      const kakaoRequest = {
+        userRequest: { utterance: "질문", user: { id: "u-1", type: "accountId" } },
+        action: { params: { question: "질문" } }
+      }
+      const env = makeEnv({ RATE_LIMIT_WINDOW_MS: '5000', RATE_LIMIT_MAX: '1' })
+      // first request
+      const req1 = new Request('https://example.com/kakao', {
+        method: 'POST',
+        body: JSON.stringify(kakaoRequest),
+        headers: { 'content-type': 'application/json', 'X-Kakao-Webhook-Secret-Token': 'secret' },
+      })
+      const res1 = await handleRequest(req1, env)
+      expect([200, 500]).toContain(res1.status) // RAG may fail in unit env
+      // second immediate request should be rate limited with 200 + message
+      const req2 = new Request('https://example.com/kakao', {
+        method: 'POST',
+        body: JSON.stringify(kakaoRequest),
+        headers: { 'content-type': 'application/json', 'X-Kakao-Webhook-Secret-Token': 'secret' },
+      })
+      const res2 = await handleRequest(req2, env)
+      expect(res2.status).toBe(200)
+      const json = await res2.json()
+      expect(json.template.outputs[0].simpleText.text).toMatch(/잠시 후/)
+    })
   })
 })
-

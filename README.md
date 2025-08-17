@@ -41,9 +41,11 @@ wrangler secret put QDRANT_API_KEY
 
 - `QDRANT_CLOUD_URL`: Qdrant Cloud 엔드포인트 URL
 - `QDRANT_COLLECTION`: 컬렉션 이름 (기본: `knue_policies`)
-- `OPENAI_CHAT_MODEL`: 채팅 모델 (기본: `gpt-5-mini`)
+- `OPENAI_CHAT_MODEL`: 채팅 모델 (기본: `gpt-4.1-mini`)
 - `ALLOWED_USER_IDS`: 허용된 사용자 ID 목록 (쉼표 구분, 선택)
 - `LOG_LEVEL`: 로그 레벨 (`debug|info|error`)
+ - `RATE_LIMIT_WINDOW_MS`: 사용자별 윈도우 (ms, 기본 5000)
+ - `RATE_LIMIT_MAX`: 윈도우 내 허용 요청 수 (기본 1)
 
 ## 🔗 Webhook 설정
 
@@ -108,6 +110,34 @@ curl -X POST https://knue-campus-counsel.kangdongouk.workers.dev/ask \
   -H "Content-Type: application/json" \
   -H "X-Kakao-Webhook-Secret-Token: your_webhook_secret" \
   -d '{"question": "졸업 요건이 궁금합니다"}'
+```
+
+### `/kakao` - 카카오 챗봇 API
+
+카카오 상담봇 스킬 서버용 엔드포인트입니다. 통합 웹훅 시크릿으로 검증하고, 카카오 템플릿 포맷으로 응답합니다.
+
+요청 헤더:
+- `X-Kakao-Webhook-Secret-Token: {WEBHOOK_SECRET_TOKEN}`
+
+요청 바디 예시:
+```json
+{
+  "action": {
+    "params": { "question": "장학금 신청 방법" }
+  }
+}
+```
+
+응답 예시:
+```json
+{
+  "version": "2.0",
+  "template": {
+    "outputs": [
+      { "simpleText": { "text": "답변 내용" } }
+    ]
+  }
+}
 ```
 
 ## 🏗️ 아키텍처
@@ -203,7 +233,11 @@ wrangler tail --format pretty
 
 ### OpenAI 모델
 - **임베딩**: `text-embedding-3-large`
-- **채팅**: `gpt-5-mini`
+- **채팅**: `gpt-4.1-mini`
+
+### 컬렉션 설정
+- `QDRANT_COLLECTION`: 정책/규정 컬렉션
+- `BOARD_COLLECTION`: 게시판 컬렉션 (기본: `www-board-data`)
 
 ## 🔒 보안
 
@@ -213,6 +247,7 @@ wrangler tail --format pretty
   - 기타 시스템: `X-Kakao-Webhook-Secret-Token` 헤더 지원
 - **사용자 제한**: `ALLOWED_USER_IDS` 화이트리스트 (선택)
 - **로그 마스킹**: 민감 정보 자동 마스킹
+ - 로컬 개발 시 `.env`에는 실제 키를 보관하지 말고 예제로 제공된 `.env.example`를 참고하세요. 실제 배포 키는 Wrangler Secrets로만 관리합니다.
 
 ## ⚠️ 제한사항
 

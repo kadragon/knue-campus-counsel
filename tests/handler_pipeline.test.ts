@@ -62,5 +62,24 @@ describe('webhook → RAG → sendMessage', () => {
     const called = fetchSpy.mock.calls.some((c: any[]) => String(c[0]).includes('/sendMessage'))
     expect(called).toBe(true)
   })
-})
 
+  it('rate limits repeated telegram messages per user', async () => {
+    const update = {
+      update_id: 2,
+      message: {
+        message_id: 11,
+        text: '또 질문',
+        from: { id: 777, is_bot: false, first_name: 'u' },
+        chat: { id: 777, type: 'private' },
+      },
+    }
+    const env = makeEnv({ RATE_LIMIT_WINDOW_MS: '5000', RATE_LIMIT_MAX: '1' })
+    const headers = { 'X-Telegram-Bot-Api-Secret-Token': 'secret', 'content-type': 'application/json' }
+    // first
+    const res1 = await handleRequest(new Request('https://example.com/telegram/webhook', { method: 'POST', headers, body: JSON.stringify(update) }), env)
+    expect([200, 204]).toContain(res1.status)
+    // second immediate
+    const res2 = await handleRequest(new Request('https://example.com/telegram/webhook', { method: 'POST', headers, body: JSON.stringify(update) }), env)
+    expect(res2.status).toBe(204)
+  })
+})
