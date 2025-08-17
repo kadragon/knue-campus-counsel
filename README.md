@@ -32,7 +32,7 @@ wrangler deploy
 ```bash
 wrangler secret put OPENAI_API_KEY
 wrangler secret put TELEGRAM_BOT_TOKEN  
-wrangler secret put TELEGRAM_WEBHOOK_SECRET_TOKEN
+wrangler secret put WEBHOOK_SECRET_TOKEN
 wrangler secret put QDRANT_API_KEY
 ```
 
@@ -62,6 +62,54 @@ npm run webhook:info
 - 스크립트는 기본적으로 `allowed_updates: ['message']`만 구독해, 봇이 보낸 메시지나 편집 이벤트(edited_message)로 인한 불필요한 웹훅 호출을 줄입니다.
 - 서버 측에서도 `from.is_bot` 메시지는 무시되어, 봇 자체 메시지로 인한 재귀 호출이 발생하지 않습니다.
 
+## 📡 API 엔드포인트
+
+### `/ask` - RAG 질의응답 API
+
+답변만 반환하는 API 엔드포인트입니다. Telegram 메시지 전송 없이 RAG 기반 답변을 받을 수 있습니다.
+
+#### 요청
+
+```bash
+POST /ask
+Content-Type: application/json
+X-Kakao-Webhook-Secret-Token: {WEBHOOK_SECRET_TOKEN}
+# 또는
+X-Telegram-Bot-Api-Secret-Token: {WEBHOOK_SECRET_TOKEN}
+
+{
+  "question": "질문 내용"
+}
+```
+
+#### 응답
+
+**성공 (200)**:
+```json
+{
+  "answer": "RAG 기반 답변 내용",
+  "references": [
+    {
+      "title": "참고 문서 제목"
+    }
+  ]
+}
+```
+
+**오류 응답**:
+- `401 Unauthorized`: 잘못된 시크릿 토큰
+- `400 Bad Request`: 질문 누락
+- `500 Internal Server Error`: 서버 오류
+
+#### 사용 예시
+
+```bash
+curl -X POST https://knue-campus-counsel.kangdongouk.workers.dev/ask \
+  -H "Content-Type: application/json" \
+  -H "X-Kakao-Webhook-Secret-Token: your_webhook_secret" \
+  -d '{"question": "졸업 요건이 궁금합니다"}'
+```
+
 ## 🏗️ 아키텍처
 
 ### 디렉터리 구조
@@ -79,8 +127,10 @@ src/
 ```
 
 ### 데이터 플로우
+
+#### Telegram 봇 플로우
 1. **Telegram Webhook** → `POST /telegram/webhook`
-2. **요청 검증** → Secret token 확인, 사용자 화이트리스트
+2. **요청 검증** → `X-Telegram-Bot-Api-Secret-Token` 헤더 확인, 사용자 화이트리스트
 3. **RAG 파이프라인**:
    - 쿼리 전처리 (트리밍, 길이 제한)
    - OpenAI 임베딩 생성 (`text-embedding-3-large`)
@@ -88,6 +138,12 @@ src/
    - OpenAI 채팅 완성 (컨텍스트 포함)
    - 응답 후처리 (출처 집계, 메시지 분할)
 4. **응답 전송** → Telegram `sendMessage`
+
+#### Ask API 플로우
+1. **외부 시스템** → `POST /ask`
+2. **요청 검증** → `X-Kakao-Webhook-Secret-Token` 또는 `X-Telegram-Bot-Api-Secret-Token` 헤더 확인
+3. **RAG 파이프라인** (위와 동일)
+4. **JSON 응답** → `{ answer, references }`
 
 ## 🧪 테스트
 
@@ -152,7 +208,9 @@ wrangler tail --format pretty
 ## 🔒 보안
 
 - **비밀 관리**: Cloudflare Workers Secrets 사용
-- **Webhook 검증**: `X-Telegram-Bot-Api-Secret-Token` 필수
+- **Webhook 검증**: 공통 `WEBHOOK_SECRET_TOKEN` 사용
+  - Telegram: `X-Telegram-Bot-Api-Secret-Token` 헤더 지원
+  - 기타 시스템: `X-Kakao-Webhook-Secret-Token` 헤더 지원
 - **사용자 제한**: `ALLOWED_USER_IDS` 화이트리스트 (선택)
 - **로그 마스킹**: 민감 정보 자동 마스킹
 
