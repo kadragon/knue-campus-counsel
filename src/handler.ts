@@ -11,7 +11,7 @@ export interface Env {
   QDRANT_COLLECTION?: string
   COLLECTION_NAME?: string
   TELEGRAM_BOT_TOKEN: string
-  TELEGRAM_WEBHOOK_SECRET_TOKEN: string
+  WEBHOOK_SECRET_TOKEN: string
   ALLOWED_USER_IDS?: string
   LOG_LEVEL?: 'info' | 'debug' | 'error'
   OPENAI_CHAT_MODEL?: string
@@ -24,12 +24,16 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     return new Response('ok')
   }
 
+  if (request.method === 'POST' && url.pathname === '/ask') {
+    return handleAskRequest(request, env)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/kakao') {
+    return handleKakaoRequest(request, env)
+  }
+
   if (request.method === 'POST' && url.pathname === '/telegram/webhook') {
-    const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-    console.log('Received secret:', secret)
-    console.log('Expected secret:', env.TELEGRAM_WEBHOOK_SECRET_TOKEN)
-    console.log('Secret length:', env.TELEGRAM_WEBHOOK_SECRET_TOKEN?.length || 0)
-    if (!secret || secret !== env.TELEGRAM_WEBHOOK_SECRET_TOKEN) {
+    if (!validateWebhookSecret(request, env)) {
       console.error('Webhook secret validation failed')
       return new Response('unauthorized', { status: 401 })
     }
@@ -68,16 +72,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const pendingMsg = await sendMessage({ chatId, text: toTgMDV2('답변 생성 중…'), botToken: cfg.telegram.botToken })
       const pendingId: number | undefined = pendingMsg?.message_id
 
-      const rag = createDefaultRag({
-        openaiApiKey: cfg.openaiApiKey,
-        qdrantUrl: cfg.qdrant.url,
-        qdrantApiKey: cfg.qdrant.apiKey,
-        qdrantCollection: cfg.qdrant.collection,
-        model: cfg.chatModel,
-      })
       console.log('Calling RAG with text:', text)
       console.log('Using model:', cfg.chatModel)
-      const result = await rag(text)
+      const result = await getRagAnswer(text, cfg)
       const full = `${result.answer}`
       const chunks = splitTelegramMessage(toTgMDV2(full), 4096)
       if (pendingId && chunks.length) {
@@ -98,6 +95,196 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
 
   return new Response('not found', { status: 404 })
+}
+
+function validateWebhookSecret(request: Request, env: Env): boolean {
+  const telegramSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+  const kakaoSecret = request.headers.get('X-Kakao-Webhook-Secret-Token')
+  
+  const secret = telegramSecret || kakaoSecret
+  return secret === env.WEBHOOK_SECRET_TOKEN
+}
+
+async function getRagAnswer(question: string, cfg: any) {
+  const rag = createDefaultRag({
+    openaiApiKey: cfg.openaiApiKey,
+    qdrantUrl: cfg.qdrant.url,
+    qdrantApiKey: cfg.qdrant.apiKey,
+    qdrantCollection: cfg.qdrant.collection,
+    model: cfg.chatModel,
+  })
+  return await rag(question)
+}
+
+async function handleKakaoRequest(request: Request, env: Env): Promise<Response> {
+  try {
+    // 웹훅 시크릿 토큰 검증
+    if (!validateWebhookSecret(request, env)) {
+      return new Response(
+        JSON.stringify({
+          version: "2.0",
+          template: {
+            outputs: [{
+              simpleText: {
+                text: "인증에 실패했습니다."
+              }
+            }]
+          }
+        }),
+        { 
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const body = await request.json() as KakaoRequest
+    const question = body?.action?.params?.question?.trim() || body?.userRequest?.utterance?.trim()
+
+    if (!question) {
+      return new Response(
+        JSON.stringify({
+          version: "2.0",
+          template: {
+            outputs: [{
+              simpleText: {
+                text: "질문을 입력해주세요."
+              }
+            }]
+          }
+        }),
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const cfg = loadConfig(env)
+    const result = await getRagAnswer(question, cfg)
+    
+    return new Response(
+      JSON.stringify({
+        version: "2.0",
+        template: {
+          outputs: [{
+            simpleText: {
+              text: result.answer
+            }
+          }]
+        }
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  } catch (error) {
+    console.error('Kakao API error:', error)
+    return new Response(
+      JSON.stringify({
+        version: "2.0",
+        template: {
+          outputs: [{
+            simpleText: {
+              text: "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+            }
+          }]
+        }
+      }),
+      { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  }
+}
+
+interface KakaoRequest {
+  intent?: {
+    id: string
+    name: string
+  }
+  userRequest?: {
+    timezone: string
+    params?: any
+    block?: {
+      id: string
+      name: string
+    }
+    utterance?: string
+    lang?: string | null
+    user?: {
+      id: string
+      type: string
+      properties?: any
+    }
+  }
+  bot?: {
+    id: string
+    name: string
+  }
+  action?: {
+    name: string
+    clientExtra?: any
+    params?: {
+      question?: string
+      [key: string]: any
+    }
+    id: string
+    detailParams?: any
+  }
+}
+
+async function handleAskRequest(request: Request, env: Env): Promise<Response> {
+  try {
+    // 웹훅 시크릿 토큰 검증
+    if (!validateWebhookSecret(request, env)) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { 
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const body = await request.json() as { question: string }
+    const question = body?.question?.trim()
+
+    if (!question) {
+      return new Response(
+        JSON.stringify({ error: 'Question is required' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const cfg = loadConfig(env)
+    const result = await getRagAnswer(question, cfg)
+    
+    return new Response(
+      JSON.stringify({
+        answer: result.answer,
+        references: result.refs
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  } catch (error) {
+    console.error('Ask API error:', error)
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  }
 }
 
 export default {
