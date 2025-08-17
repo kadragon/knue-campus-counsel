@@ -7,7 +7,7 @@ const makeEnv = (overrides: Partial<Record<string, string>> = {}) => ({
   QDRANT_API_KEY: 'qk',
   COLLECTION_NAME: 'knue_policies',
   TELEGRAM_BOT_TOKEN: '123:abc',
-  TELEGRAM_WEBHOOK_SECRET_TOKEN: 'secret',
+  WEBHOOK_SECRET_TOKEN: 'secret',
   LOG_LEVEL: 'error',
   ...overrides,
 }) as any
