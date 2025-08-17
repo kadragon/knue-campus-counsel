@@ -126,9 +126,56 @@ export function renderMarkdownToTelegramV2(input: string): string {
   return text
 }
 
-// 하위 호환성을 위해 escapeHtml 함수를 escapeMarkdownV2로 리다이렉트
+/**
+ * Escape HTML special characters for Telegram HTML parsing mode
+ */
 export function escapeHtml(input: string): string {
-  return escapeMarkdownV2(input)
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/**
+ * Convert mixed Markdown/HTML to clean HTML for Telegram
+ */
+export function renderMarkdownToTelegramHTML(input: string): string {
+  let text = input
+  
+  // Remove MarkdownV2 escape sequences that LLM might still generate
+  text = text
+    .replace(/\\([_.[\]()~`>#+=|{}.!:-])/g, '$1')
+  
+  // Simple approach: preserve existing HTML tags and convert markdown
+  const htmlTagRegex = /<\/?[a-zA-Z][^>]*>/g
+  const tags: string[] = []
+  const PLACEHOLDER = '\uE000TAG\uE001'
+  
+  // Extract existing HTML tags
+  text = text.replace(htmlTagRegex, (match) => {
+    tags.push(match)
+    return `${PLACEHOLDER}${tags.length - 1}${PLACEHOLDER}`
+  })
+  
+  // Now escape HTML special characters in the remaining text
+  text = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  
+  // Convert markdown syntax
+  text = text
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')  // **bold**
+    .replace(/\*([^*]+)\*/g, '<i>$1</i>')      // *italic*
+    .replace(/`([^`]+)`/g, '<code>$1</code>')  // `code`
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')  // [text](url)
+  
+  // Restore HTML tags
+  text = text.replace(new RegExp(`${PLACEHOLDER}(\\d+)${PLACEHOLDER}`, 'g'), (_, index) => {
+    return tags[parseInt(index)] || ''
+  })
+  
+  return text
 }
 
 /**

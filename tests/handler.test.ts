@@ -10,6 +10,8 @@ const makeEnv = (overrides: Partial<Record<string, string>> = {}) => ({
   WEBHOOK_SECRET_TOKEN: 'secret',
   ALLOWED_USER_IDS: '',
   LOG_LEVEL: 'debug',
+  BOARD_COLLECTION_TOP_K: '2',
+  POLICY_COLLECTION_TOP_K: '3',
   ...overrides,
 }) as any
 

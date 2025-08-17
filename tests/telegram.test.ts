@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { sendMessage } from '../src/telegram'
 
 describe('telegram.sendMessage', () => {
-  it('POSTs to Telegram sendMessage with MarkdownV2 parse_mode', async () => {
+  it('POSTs to Telegram sendMessage with HTML parse_mode', async () => {
     const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }))
     const botToken = '123:abc'
     await sendMessage({
@@ -21,7 +21,7 @@ describe('telegram.sendMessage', () => {
     expect(body).toMatchObject({
       chat_id: 42,
       text: '**hi**',
-      parse_mode: 'MarkdownV2',
+      parse_mode: 'HTML',
       disable_web_page_preview: true,
     })
   })

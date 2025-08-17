@@ -1,7 +1,7 @@
 import { loadConfig } from './config'
-import { createDefaultRag } from './rag'
+import { createEnhancedRag } from './rag'
 import { sendMessage, sendChatAction, editMessageText } from './telegram'
-import { renderMarkdownToTelegramV2 as toTgMDV2, splitTelegramMessage } from './utils'
+import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage } from './utils'
 
 export interface Env {
   OPENAI_API_KEY: string
@@ -63,20 +63,20 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       // simple commands
       if (text === '/start' || text === '/help') {
         const reply = '안녕하세요! 규정/지침 근거 기반으로 답변해 드립니다. 질문을 보내주세요.'
-        await sendMessage({ chatId, text: toTgMDV2(reply), botToken: cfg.telegram.botToken })
+        await sendMessage({ chatId, text: toTgHTML(reply), botToken: cfg.telegram.botToken })
         return new Response(null, { status: 200 })
       }
 
       // Perceived latency: show typing and placeholder message
       await sendChatAction({ chatId, action: 'typing', botToken: cfg.telegram.botToken })
-      const pendingMsg = await sendMessage({ chatId, text: toTgMDV2('답변 생성 중…'), botToken: cfg.telegram.botToken })
+      const pendingMsg = await sendMessage({ chatId, text: toTgHTML('답변 생성 중…'), botToken: cfg.telegram.botToken })
       const pendingId: number | undefined = pendingMsg?.message_id
 
       console.log('Calling RAG with text:', text)
       console.log('Using model:', cfg.chatModel)
       const result = await getRagAnswer(text, cfg)
       const full = `${result.answer}`
-      const chunks = splitTelegramMessage(toTgMDV2(full), 4096)
+      const chunks = splitTelegramMessage(toTgHTML(full), 4096)
       if (pendingId && chunks.length) {
         await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
         for (const c of chunks.slice(1)) {
@@ -106,12 +106,15 @@ function validateWebhookSecret(request: Request, env: Env): boolean {
 }
 
 async function getRagAnswer(question: string, cfg: any) {
-  const rag = createDefaultRag({
+  const rag = await createEnhancedRag({
     openaiApiKey: cfg.openaiApiKey,
     qdrantUrl: cfg.qdrant.url,
     qdrantApiKey: cfg.qdrant.apiKey,
     qdrantCollection: cfg.qdrant.collection,
+    boardCollection: 'www-board-data',
     model: cfg.chatModel,
+    boardTopK: cfg.rag.boardTopK,
+    policyTopK: cfg.rag.policyTopK,
   })
   return await rag(question)
 }
