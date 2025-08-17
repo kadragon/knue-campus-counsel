@@ -12,9 +12,9 @@ const cmd = process.argv[2]
 async function main() {
   if (cmd === 'set') {
     const url = process.argv[3]
-    const secret = process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN || process.argv[4]
+    const secret = process.env.WEBHOOK_SECRET_TOKEN || process.argv[4]
     if (!url) {
-      console.error('Usage: webhook set <url> [secret] (or TELEGRAM_WEBHOOK_SECRET_TOKEN env)')
+      console.error('Usage: webhook set <url> [secret] (or WEBHOOK_SECRET_TOKEN env)')
       process.exit(1)
     }
     const body = { url, allowed_updates: ['message'] }
@@ -63,7 +63,7 @@ async function main() {
 
   console.log('Usage: webhook <set|delete|info> ...')
   console.log('Examples:')
-  console.log('  TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET_TOKEN=... node scripts/webhook.mjs set https://<host>/telegram/webhook')
+  console.log('  TELEGRAM_BOT_TOKEN=... WEBHOOK_SECRET_TOKEN=... node scripts/webhook.mjs set https://<host>/telegram/webhook')
   console.log('  TELEGRAM_BOT_TOKEN=... node scripts/webhook.mjs delete')
   console.log('  TELEGRAM_BOT_TOKEN=... node scripts/webhook.mjs info')
 }
