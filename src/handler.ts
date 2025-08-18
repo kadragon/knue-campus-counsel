@@ -28,12 +28,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     return handleAskRequest(request, env)
   }
 
-  if (request.method === 'POST' && url.pathname === '/kakao') {
-    return handleKakaoRequest(request, env)
-  }
 
-  if (request.method === 'POST' && url.pathname === '/telegram/webhook') {
-    if (!validateWebhookSecret(request, env)) {
+  if (request.method === 'POST' && url.pathname === '/telegram') {
+    if (!validateTelegramWebhookSecret(request, env)) {
       console.error('Webhook secret validation failed')
       return new Response('unauthorized', { status: 401 })
     }
@@ -115,12 +112,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   return new Response('not found', { status: 404 })
 }
 
-function validateWebhookSecret(request: Request, env: Env): boolean {
+function validateTelegramWebhookSecret(request: Request, env: Env): boolean {
   const telegramSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-  const kakaoSecret = request.headers.get('X-Kakao-Webhook-Secret-Token')
-  
-  const secret = telegramSecret || kakaoSecret
-  return secret === env.WEBHOOK_SECRET_TOKEN
+  return telegramSecret === env.WEBHOOK_SECRET_TOKEN
+}
+
+function validateWebhookSecret(request: Request, env: Env): boolean {
+  const webhookSecret = request.headers.get('X-Webhook-Secret-Token')
+  return webhookSecret === env.WEBHOOK_SECRET_TOKEN
 }
 
 async function getRagAnswer(question: string, cfg: any) {
@@ -137,147 +136,6 @@ async function getRagAnswer(question: string, cfg: any) {
   return await rag(question)
 }
 
-async function handleKakaoRequest(request: Request, env: Env): Promise<Response> {
-  try {
-    // 웹훅 시크릿 토큰 검증
-    if (!validateWebhookSecret(request, env)) {
-      return new Response(
-        JSON.stringify({
-          version: "2.0",
-          template: {
-            outputs: [{
-              simpleText: {
-                text: "인증에 실패했습니다."
-              }
-            }]
-          }
-        }),
-        { 
-          status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      )
-    }
-
-    const body = await request.json() as KakaoRequest
-    const question = body?.action?.params?.question?.trim() || body?.userRequest?.utterance?.trim()
-
-    // rate limiting per kakao user when available
-    const kakaoUserId = body?.userRequest?.user?.id
-    if (kakaoUserId) {
-      const cfg = loadConfig(env)
-      const rl = allowRequest(`kk:${kakaoUserId}`, cfg.rateLimit.windowMs, cfg.rateLimit.max)
-      if (!rl.allowed) {
-        return new Response(
-          JSON.stringify({
-            version: "2.0",
-            template: {
-              outputs: [{
-                simpleText: {
-                  text: "요청이 많습니다. 잠시 후 다시 시도해주세요."
-                }
-              }]
-            }
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfterSec) } }
-        )
-      }
-    }
-
-    if (!question) {
-      return new Response(
-        JSON.stringify({
-          version: "2.0",
-          template: {
-            outputs: [{
-              simpleText: {
-                text: "질문을 입력해주세요."
-              }
-            }]
-          }
-        }),
-        { 
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      )
-    }
-
-    const cfg = loadConfig(env)
-    const result = await getRagAnswer(question, cfg)
-    
-    return new Response(
-      JSON.stringify({
-        version: "2.0",
-        template: {
-          outputs: [{
-            simpleText: {
-              text: result.answer
-            }
-          }]
-        }
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    )
-  } catch (error) {
-    console.error('Kakao API error:', error)
-    return new Response(
-      JSON.stringify({
-        version: "2.0",
-        template: {
-          outputs: [{
-            simpleText: {
-              text: "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
-            }
-          }]
-        }
-      }),
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    )
-  }
-}
-
-interface KakaoRequest {
-  intent?: {
-    id: string
-    name: string
-  }
-  userRequest?: {
-    timezone: string
-    params?: any
-    block?: {
-      id: string
-      name: string
-    }
-    utterance?: string
-    lang?: string | null
-    user?: {
-      id: string
-      type: string
-      properties?: any
-    }
-  }
-  bot?: {
-    id: string
-    name: string
-  }
-  action?: {
-    name: string
-    clientExtra?: any
-    params?: {
-      question?: string
-      [key: string]: any
-    }
-    id: string
-    detailParams?: any
-  }
-}
 
 async function handleAskRequest(request: Request, env: Env): Promise<Response> {
   try {

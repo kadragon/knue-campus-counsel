@@ -14,14 +14,13 @@
 - `npm run check`: Typecheck + tests.
 - `wrangler dev --remote`: Run the Worker against Cloudflare (local dev).
 - `wrangler deploy`: Deploy to production.
-- `npm run webhook:set -- https://<host>/telegram/webhook`: Set Telegram webhook (uses `WEBHOOK_SECRET_TOKEN`). Also `webhook:delete`, `webhook:info`.
+- `npm run webhook:set -- https://<host>/telegram`: Set Telegram webhook (uses `WEBHOOK_SECRET_TOKEN`). Also `webhook:delete`, `webhook:info`.
 
 ## API Endpoints
 
 - `GET /healthz`: Health check endpoint
-- `POST /telegram/webhook`: Telegram bot webhook (requires `X-Telegram-Bot-Api-Secret-Token`)
-- `POST /ask`: RAG API endpoint for external integrations (requires auth header)
-- `POST /kakao`: Kakao chatbot API with template response format (requires `X-Kakao-Webhook-Secret-Token`)
+- `POST /telegram`: Telegram bot webhook (requires `X-Telegram-Bot-Api-Secret-Token`)
+- `POST /ask`: RAG API endpoint for external integrations (requires `X-Webhook-Secret-Token`)
 
 ## Coding Style & Naming Conventions
 
@@ -46,7 +45,7 @@
 
 - Secrets via Wrangler: `wrangler secret put OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `WEBHOOK_SECRET_TOKEN`, `QDRANT_API_KEY`. Do not commit secrets; use `.env.example` as template.
 - Vars in `wrangler.toml`: `QDRANT_*`, `OPENAI_CHAT_MODEL`, `LOG_LEVEL`, `ALLOWED_USER_IDS`, `BOARD_COLLECTION`, `RATE_LIMIT_*`.
-- Unified webhook validation: supports both `X-Telegram-Bot-Api-Secret-Token` and `X-Kakao-Webhook-Secret-Token` headers.
+- Webhook validation: `/telegram` uses `X-Telegram-Bot-Api-Secret-Token`, `/ask` uses `X-Webhook-Secret-Token`.
 - Rate limiting: configurable per-user throttling with `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`.
 
 ## Environment Variables
@@ -55,7 +54,7 @@
 
 - `OPENAI_API_KEY`: OpenAI API key
 - `TELEGRAM_BOT_TOKEN`: Telegram bot token
-- `WEBHOOK_SECRET_TOKEN`: Unified webhook secret for all endpoints
+- `WEBHOOK_SECRET_TOKEN`: Secret token for webhook authentication
 - `QDRANT_API_KEY`: Qdrant API key
 
 ### Optional Variables

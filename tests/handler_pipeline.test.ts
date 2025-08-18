@@ -51,7 +51,7 @@ describe('webhook → RAG → sendMessage', () => {
         chat: { id: 777, type: 'private' },
       },
     }
-    const req = new Request('https://example.com/telegram/webhook', {
+    const req = new Request('https://example.com/telegram', {
       method: 'POST',
       headers: { 'X-Telegram-Bot-Api-Secret-Token': 'secret', 'content-type': 'application/json' },
       body: JSON.stringify(update),
@@ -76,10 +76,10 @@ describe('webhook → RAG → sendMessage', () => {
     const env = makeEnv({ RATE_LIMIT_WINDOW_MS: '5000', RATE_LIMIT_MAX: '1' })
     const headers = { 'X-Telegram-Bot-Api-Secret-Token': 'secret', 'content-type': 'application/json' }
     // first
-    const res1 = await handleRequest(new Request('https://example.com/telegram/webhook', { method: 'POST', headers, body: JSON.stringify(update) }), env)
+    const res1 = await handleRequest(new Request('https://example.com/telegram', { method: 'POST', headers, body: JSON.stringify(update) }), env)
     expect([200, 204]).toContain(res1.status)
     // second immediate
-    const res2 = await handleRequest(new Request('https://example.com/telegram/webhook', { method: 'POST', headers, body: JSON.stringify(update) }), env)
+    const res2 = await handleRequest(new Request('https://example.com/telegram', { method: 'POST', headers, body: JSON.stringify(update) }), env)
     expect(res2.status).toBe(204)
   })
 })

@@ -22,14 +22,14 @@ describe('handler', () => {
     expect(res.status).toBe(200)
   })
 
-  it('rejects webhook without secret header', async () => {
-    const req = new Request('https://example.com/telegram/webhook', { method: 'POST', body: '{}' })
+  it('rejects telegram webhook without secret header', async () => {
+    const req = new Request('https://example.com/telegram', { method: 'POST', body: '{}' })
     const res = await handleRequest(req, makeEnv())
     expect(res.status).toBe(401)
   })
 
-  it('accepts webhook with correct secret', async () => {
-    const req = new Request('https://example.com/telegram/webhook', {
+  it('accepts telegram webhook with correct secret', async () => {
+    const req = new Request('https://example.com/telegram', {
       method: 'POST',
       body: JSON.stringify({ update_id: 1 }),
       headers: { 'X-Telegram-Bot-Api-Secret-Token': 'secret', 'content-type': 'application/json' },
@@ -39,7 +39,7 @@ describe('handler', () => {
   })
 
   describe('/ask API', () => {
-    it('rejects request without secret header', async () => {
+    it('rejects request without webhook secret header', async () => {
       const req = new Request('https://example.com/ask', {
         method: 'POST',
         body: JSON.stringify({ question: '테스트 질문' }),
@@ -51,13 +51,13 @@ describe('handler', () => {
       expect(json.error).toBe('Unauthorized')
     })
 
-    it('rejects request with wrong secret', async () => {
+    it('rejects request with wrong webhook secret', async () => {
       const req = new Request('https://example.com/ask', {
         method: 'POST',
         body: JSON.stringify({ question: '테스트 질문' }),
         headers: { 
           'content-type': 'application/json',
-          'X-Kakao-Webhook-Secret-Token': 'wrong-secret'
+          'X-Webhook-Secret-Token': 'wrong-secret'
         },
       })
       const res = await handleRequest(req, makeEnv())
@@ -66,26 +66,13 @@ describe('handler', () => {
       expect(json.error).toBe('Unauthorized')
     })
 
-    it('accepts request with correct kakao secret', async () => {
+    it('accepts request with correct webhook secret', async () => {
       const req = new Request('https://example.com/ask', {
         method: 'POST',
         body: JSON.stringify({ question: '테스트 질문' }),
         headers: { 
           'content-type': 'application/json',
-          'X-Kakao-Webhook-Secret-Token': 'secret'
-        },
-      })
-      const res = await handleRequest(req, makeEnv())
-      expect(res.status).toBe(500) // RAG 함수가 실제로는 동작하지 않아서 에러가 날 것
-    })
-
-    it('accepts request with correct telegram secret', async () => {
-      const req = new Request('https://example.com/ask', {
-        method: 'POST',
-        body: JSON.stringify({ question: '테스트 질문' }),
-        headers: { 
-          'content-type': 'application/json',
-          'X-Telegram-Bot-Api-Secret-Token': 'secret'
+          'X-Webhook-Secret-Token': 'secret'
         },
       })
       const res = await handleRequest(req, makeEnv())
@@ -98,7 +85,7 @@ describe('handler', () => {
         body: JSON.stringify({}),
         headers: { 
           'content-type': 'application/json',
-          'X-Kakao-Webhook-Secret-Token': 'secret'
+          'X-Webhook-Secret-Token': 'secret'
         },
       })
       const res = await handleRequest(req, makeEnv())
@@ -113,7 +100,7 @@ describe('handler', () => {
         body: JSON.stringify({ question: '   ' }),
         headers: { 
           'content-type': 'application/json',
-          'X-Kakao-Webhook-Secret-Token': 'secret'
+          'X-Webhook-Secret-Token': 'secret'
         },
       })
       const res = await handleRequest(req, makeEnv())
@@ -123,127 +110,4 @@ describe('handler', () => {
     })
   })
 
-  describe('/kakao API', () => {
-    it('rejects request without secret header', async () => {
-      const kakaoRequest = {
-        action: {
-          params: {
-            question: '테스트 질문'
-          }
-        }
-      }
-      const req = new Request('https://example.com/kakao', {
-        method: 'POST',
-        body: JSON.stringify(kakaoRequest),
-        headers: { 'content-type': 'application/json' },
-      })
-      const res = await handleRequest(req, makeEnv())
-      expect(res.status).toBe(401)
-      const json = await res.json()
-      expect(json.template.outputs[0].simpleText.text).toBe('인증에 실패했습니다.')
-    })
-
-    it('accepts request with correct secret and returns kakao format', async () => {
-      const kakaoRequest = {
-        intent: {
-          id: "ii1x78y1asmenx4u01xrityu",
-          name: "블록 이름"
-        },
-        userRequest: {
-          timezone: "Asia/Seoul",
-          utterance: "테스트 질문",
-          user: {
-            id: "717500",
-            type: "accountId"
-          }
-        },
-        action: {
-          params: {
-            question: "테스트 질문"
-          }
-        }
-      }
-      const req = new Request('https://example.com/kakao', {
-        method: 'POST',
-        body: JSON.stringify(kakaoRequest),
-        headers: { 
-          'content-type': 'application/json',
-          'X-Kakao-Webhook-Secret-Token': 'secret'
-        },
-      })
-      const res = await handleRequest(req, makeEnv())
-      expect(res.status).toBe(200)
-      const json = await res.json()
-      expect(json.version).toBe('2.0')
-      expect(json.template.outputs).toBeDefined()
-      expect(json.template.outputs[0].simpleText.text).toBeDefined()
-    })
-
-    it('handles missing question gracefully', async () => {
-      const kakaoRequest = {
-        action: {
-          params: {}
-        }
-      }
-      const req = new Request('https://example.com/kakao', {
-        method: 'POST',
-        body: JSON.stringify(kakaoRequest),
-        headers: { 
-          'content-type': 'application/json',
-          'X-Kakao-Webhook-Secret-Token': 'secret'
-        },
-      })
-      const res = await handleRequest(req, makeEnv())
-      expect(res.status).toBe(200)
-      const json = await res.json()
-      expect(json.template.outputs[0].simpleText.text).toBe('질문을 입력해주세요.')
-    })
-
-    it('extracts question from utterance when params.question is missing', async () => {
-      const kakaoRequest = {
-        userRequest: {
-          utterance: "발화에서 추출된 질문"
-        },
-        action: {
-          params: {}
-        }
-      }
-      const req = new Request('https://example.com/kakao', {
-        method: 'POST',
-        body: JSON.stringify(kakaoRequest),
-        headers: { 
-          'content-type': 'application/json',
-          'X-Kakao-Webhook-Secret-Token': 'secret'
-        },
-      })
-      const res = await handleRequest(req, makeEnv())
-      expect(res.status).toBe(200) // RAG 함수가 실제로는 동작하지 않아서 에러가 날 수도 있지만 구조는 정상
-    })
-
-    it('rate limits repeated kakao requests per user', async () => {
-      const kakaoRequest = {
-        userRequest: { utterance: "질문", user: { id: "u-1", type: "accountId" } },
-        action: { params: { question: "질문" } }
-      }
-      const env = makeEnv({ RATE_LIMIT_WINDOW_MS: '5000', RATE_LIMIT_MAX: '1' })
-      // first request
-      const req1 = new Request('https://example.com/kakao', {
-        method: 'POST',
-        body: JSON.stringify(kakaoRequest),
-        headers: { 'content-type': 'application/json', 'X-Kakao-Webhook-Secret-Token': 'secret' },
-      })
-      const res1 = await handleRequest(req1, env)
-      expect([200, 500]).toContain(res1.status) // RAG may fail in unit env
-      // second immediate request should be rate limited with 200 + message
-      const req2 = new Request('https://example.com/kakao', {
-        method: 'POST',
-        body: JSON.stringify(kakaoRequest),
-        headers: { 'content-type': 'application/json', 'X-Kakao-Webhook-Secret-Token': 'secret' },
-      })
-      const res2 = await handleRequest(req2, env)
-      expect(res2.status).toBe(200)
-      const json = await res2.json()
-      expect(json.template.outputs[0].simpleText.text).toMatch(/잠시 후/)
-    })
-  })
 })
