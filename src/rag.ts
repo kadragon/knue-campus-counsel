@@ -38,7 +38,8 @@ function normalizeHits(hits: QdrantHit[]): NormalizedHit[] {
       link = linkField || '';
     } else {
       sourceType = 'policy';
-      link = 'https://www.knue.ac.kr/www/contents.do?key=392';
+      // preview_url이 있으면 사용, 없으면 기본값 사용
+      link = p.preview_url || 'https://www.knue.ac.kr/www/contents.do?key=392';
     }
     
     return {
