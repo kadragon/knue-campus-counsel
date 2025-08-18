@@ -28,8 +28,13 @@ describe('webhook → RAG → sendMessage', () => {
       if (u.includes('/v1/chat/completions')) {
         return new Response(JSON.stringify({ choices: [{ message: { content: '졸업 요건은 130학점 이상입니다.' } }] }), { status: 200 })
       }
-      if (u.includes('https://api.telegram.org/bot')) {
-        return new Response('{}', { status: 200 })
+      try {
+        const parsedUrl = new URL(u)
+        if (parsedUrl.host === 'api.telegram.org' && parsedUrl.pathname.startsWith('/bot')) {
+          return new Response('{}', { status: 200 })
+        }
+      } catch (e) {
+        // If URL parsing fails, fall through to default response
       }
       return new Response('not mocked', { status: 500 })
     })

@@ -300,6 +300,18 @@ export function maskSensitive(data: any): any {
   return masked
 }
 
+/**
+ * Read system prompt from file
+ */
+export async function loadSystemPrompt(): Promise<string> {
+  try {
+    const response = await fetch(new URL('./prompts/system-prompt.txt', import.meta.url))
+    return await response.text()
+  } catch (error) {
+    throw createError('Failed to load system prompt', error)
+  }
+}
+
 // Minimal in-memory rate limiter (per isolate)
 const rlBuckets: Map<string, number[]> = new Map()
 

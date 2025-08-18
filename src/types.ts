@@ -72,6 +72,11 @@ export interface DocumentPayload {
   url?: string
   chunk_text?: string
   is_active?: boolean
+  preview_url?: string
+  content?: string
+  source?: string
+  link?: string
+  github_url?: string
 }
 
 export interface LogEntry {
