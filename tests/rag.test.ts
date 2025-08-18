@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from 'vitest'
 import { buildRag } from '../src/rag'
 
+// Mock loadSystemPrompt
+vi.mock('../src/utils', async () => {
+  const actual = await vi.importActual('../src/utils')
+  return {
+    ...actual,
+    loadSystemPrompt: vi.fn().mockResolvedValue('You are a helpful campus counseling assistant.')
+  }
+})
+
 describe('rag.orchestrate', () => {
   it('returns 근거 없음 when no hits', async () => {
     const embedding = vi.fn(async () => [0.1, 0.2])

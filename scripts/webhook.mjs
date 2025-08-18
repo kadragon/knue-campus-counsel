@@ -63,7 +63,7 @@ async function main() {
 
   console.log('Usage: webhook <set|delete|info> ...')
   console.log('Examples:')
-  console.log('  TELEGRAM_BOT_TOKEN=... WEBHOOK_SECRET_TOKEN=... node scripts/webhook.mjs set https://<host>/telegram/webhook')
+  console.log('  TELEGRAM_BOT_TOKEN=... WEBHOOK_SECRET_TOKEN=... node scripts/webhook.mjs set https://<host>/telegram')
   console.log('  TELEGRAM_BOT_TOKEN=... node scripts/webhook.mjs delete')
   console.log('  TELEGRAM_BOT_TOKEN=... node scripts/webhook.mjs info')
 }

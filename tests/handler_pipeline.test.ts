@@ -28,8 +28,13 @@ describe('webhook → RAG → sendMessage', () => {
       if (u.includes('/v1/chat/completions')) {
         return new Response(JSON.stringify({ choices: [{ message: { content: '졸업 요건은 130학점 이상입니다.' } }] }), { status: 200 })
       }
-      if (u.includes('https://api.telegram.org/bot')) {
-        return new Response('{}', { status: 200 })
+      try {
+        const parsedUrl = new URL(u)
+        if (parsedUrl.host === 'api.telegram.org' && parsedUrl.pathname.startsWith('/bot')) {
+          return new Response('{}', { status: 200 })
+        }
+      } catch (e) {
+        // If URL parsing fails, fall through to default response
       }
       return new Response('not mocked', { status: 500 })
     })
@@ -51,7 +56,7 @@ describe('webhook → RAG → sendMessage', () => {
         chat: { id: 777, type: 'private' },
       },
     }
-    const req = new Request('https://example.com/telegram/webhook', {
+    const req = new Request('https://example.com/telegram', {
       method: 'POST',
       headers: { 'X-Telegram-Bot-Api-Secret-Token': 'secret', 'content-type': 'application/json' },
       body: JSON.stringify(update),
@@ -76,10 +81,10 @@ describe('webhook → RAG → sendMessage', () => {
     const env = makeEnv({ RATE_LIMIT_WINDOW_MS: '5000', RATE_LIMIT_MAX: '1' })
     const headers = { 'X-Telegram-Bot-Api-Secret-Token': 'secret', 'content-type': 'application/json' }
     // first
-    const res1 = await handleRequest(new Request('https://example.com/telegram/webhook', { method: 'POST', headers, body: JSON.stringify(update) }), env)
+    const res1 = await handleRequest(new Request('https://example.com/telegram', { method: 'POST', headers, body: JSON.stringify(update) }), env)
     expect([200, 204]).toContain(res1.status)
     // second immediate
-    const res2 = await handleRequest(new Request('https://example.com/telegram/webhook', { method: 'POST', headers, body: JSON.stringify(update) }), env)
+    const res2 = await handleRequest(new Request('https://example.com/telegram', { method: 'POST', headers, body: JSON.stringify(update) }), env)
     expect(res2.status).toBe(204)
   })
 })
