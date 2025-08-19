@@ -38,6 +38,11 @@ function normalizeHits(hits: QdrantHit[]): NormalizedHit[] {
     let sourceType: "policy" | "board";
     let link: string;
 
+    // 게시판 문서 조건:
+    // 1. 명시적으로 'knue_board' 소스로 표시된 경우
+    // 2. link 필드는 있지만 github_url이 없는 경우 (게시판 문서 패턴)
+    //    - 규정 문서: github_url + preview_url 조합
+    //    - 게시판 문서: link 필드만 존재
     if (source === "knue_board" || (linkField && !githubUrl)) {
       sourceType = "board";
       link = linkField || "";
