@@ -28,7 +28,6 @@ export async function createEmbedding(opts: {
     
     if (!res.ok) {
       const errorText = await res.text()
-      console.error('OpenAI embeddings API error:', res.status, errorText)
       throw new Error(`OpenAI embeddings error: ${res.status} - ${errorText}`)
     }
     
@@ -75,7 +74,6 @@ export async function chatComplete(opts: {
     
     if (!res.ok) {
       const errorText = await res.text()
-      console.error('OpenAI chat API error:', res.status, errorText)
       throw new Error(`OpenAI chat error: ${res.status} - ${errorText}`)
     }
     
