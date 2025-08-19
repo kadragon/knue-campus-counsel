@@ -79,7 +79,7 @@ export function buildRag(opts: {
       return { answer: "문서에서 해당 근거를 찾지 못했습니다.", refs: [] };
     }
     const context = formatContext(filtered);
-    const system = await loadSystemPrompt();
+    const system = loadSystemPrompt();
     const user = query;
     const content = await chat({ system, user, context });
     const refs = dedupeRefs(filtered);
