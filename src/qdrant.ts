@@ -1,41 +1,56 @@
-import { fetchWithRetry } from './http'
-type FetchLike = typeof fetch
+import { fetchWithRetry } from "./http";
+type FetchLike = typeof fetch;
 
 export type QdrantHit = {
-  id: string | number
-  score: number
-  payload?: Record<string, any>
-}
+  id: string | number;
+  score: number;
+  payload?: Record<string, any>;
+};
 
 export async function qdrantSearch(opts: {
-  url: string
-  apiKey: string
-  collection: string
-  vector: number[]
-  limit: number
-  filter?: Record<string, any>
-  scoreThreshold?: number
-  fetchImpl?: FetchLike
+  url: string;
+  apiKey: string;
+  collection: string;
+  vector: number[];
+  limit: number;
+  filter?: Record<string, any>;
+  scoreThreshold?: number;
+  fetchImpl?: FetchLike;
 }): Promise<QdrantHit[]> {
-  const { url, apiKey, collection, vector, limit, filter, scoreThreshold, fetchImpl = fetch } = opts
-  const endpoint = `${url.replace(/\/$/, '')}/collections/${encodeURIComponent(collection)}/points/search`
+  const {
+    url,
+    apiKey,
+    collection,
+    vector,
+    limit,
+    filter,
+    scoreThreshold,
+    fetchImpl = fetch,
+  } = opts;
+  const endpoint = `${url.replace(/\/$/, "")}/collections/${encodeURIComponent(
+    collection
+  )}/points/search`;
   const body: any = {
     vector,
     limit,
     // Limit payload fields to reduce payload size (use only title and content)
-    with_payload: { include: ['title', 'content'] },
-  }
-  if (filter) body.filter = filter
-  if (typeof scoreThreshold === 'number') body.score_threshold = scoreThreshold
-  const res = await fetchWithRetry(endpoint, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'api-key': apiKey,
+    with_payload: { include: ["title", "content", "preview_url", "link"] },
+  };
+  if (filter) body.filter = filter;
+  if (typeof scoreThreshold === "number") body.score_threshold = scoreThreshold;
+  const res = await fetchWithRetry(
+    endpoint,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "api-key": apiKey,
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  }, { fetchImpl })
-  if (!res.ok) throw new Error(`Qdrant search error: ${res.status}`)
-  const json = await res.json() as any
-  return (json.result ?? []) as QdrantHit[]
+    { fetchImpl }
+  );
+  if (!res.ok) throw new Error(`Qdrant search error: ${res.status}`);
+  const json = (await res.json()) as any;
+  return (json.result ?? []) as QdrantHit[];
 }

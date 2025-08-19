@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-- Source: `src/` — `handler.ts` (Cloudflare Worker entry), `rag.ts` (RAG orchestration), `openai.ts`, `qdrant.ts`, `telegram.ts`, `config.ts`, `http.ts`, `utils.ts`, `types.ts`.
+- Source: `src/` — `handler.ts` (Cloudflare Worker entry), `rag.ts` (RAG orchestration with Markdown context), `openai.ts`, `qdrant.ts` (unified payload support), `telegram.ts`, `config.ts`, `http.ts`, `utils.ts` (inline system prompt), `types.ts`.
 - Tests: `tests/**/*.test.ts` (Vitest). CI runs typecheck + tests on PRs and `main`.
 - Scripts: `scripts/webhook.mjs` (Telegram webhook manage).
 - Config: `wrangler.toml` (deployment/env), `tsconfig.json`, `vitest.config.js`, `.env.example` (environment template).

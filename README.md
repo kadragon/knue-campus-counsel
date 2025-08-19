@@ -156,11 +156,11 @@ src/
 ├── config.ts       # 환경변수 로딩/검증
 ├── types.ts        # TypeScript 타입 정의
 ├── telegram.ts     # Telegram API 래퍼 (메시지 전송, webhook 관리)
-├── rag.ts          # RAG 파이프라인 오케스트레이션
+├── rag.ts          # RAG 파이프라인 오케스트레이션 (Markdown 컨텍스트 포맷)
 ├── openai.ts       # OpenAI API 클라이언트 (임베딩, 채팅)
-├── qdrant.ts       # Qdrant 벡터 검색 클라이언트
+├── qdrant.ts       # Qdrant 벡터 검색 클라이언트 (통합 payload 지원)
 ├── http.ts         # HTTP 유틸리티 (재시도, 타임아웃)
-└── utils.ts        # 유틸리티 함수 (로깅, 메시지 분할 등)
+└── utils.ts        # 유틸리티 함수 (로깅, 메시지 분할, 인라인 시스템 프롬프트)
 ```
 
 ### 데이터 플로우
@@ -172,7 +172,8 @@ src/
 3. **RAG 파이프라인**:
    - 쿼리 전처리 (트리밍, 길이 제한)
    - OpenAI 임베딩 생성 (`text-embedding-3-large`)
-   - Qdrant 벡터 검색 (top-6, score ≥ 0.2)
+   - 병렬 벡터 검색 (규정 + 게시판 컬렉션)
+   - Markdown 형식 컨텍스트 생성 (구조화된 문서 정보)
    - OpenAI 채팅 완성 (컨텍스트 포함)
    - 응답 후처리 (출처 집계, 메시지 분할)
 4. **응답 전송** → Telegram `sendMessage`
