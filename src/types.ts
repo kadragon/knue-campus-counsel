@@ -88,4 +88,34 @@ export interface LogEntry {
   latency?: number
   error?: string
   refs?: string[]
+  [key: string]: any
+}
+
+export interface PerformanceMetrics {
+  embedding?: {
+    model: string
+    inputLength: number
+    dimensions: number
+    tokensUsed?: number
+  }
+  search?: {
+    collection: string
+    vectorDimensions: number
+    limit: number
+    resultsCount: number
+    avgScore: number
+    topScore: number
+  }
+  chat?: {
+    model: string
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
+    responseLength: number
+  }
+  pipeline?: {
+    totalTime: number
+    resultsCount: number
+    refsCount: number
+  }
 }

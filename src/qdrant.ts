@@ -1,4 +1,5 @@
 import { fetchWithRetry } from "./http";
+import { measureAsync, log } from "./utils";
 type FetchLike = typeof fetch;
 
 export type QdrantHit = {
@@ -17,40 +18,65 @@ export async function qdrantSearch(opts: {
   scoreThreshold?: number;
   fetchImpl?: FetchLike;
 }): Promise<QdrantHit[]> {
-  const {
-    url,
-    apiKey,
-    collection,
-    vector,
-    limit,
-    filter,
-    scoreThreshold,
-    fetchImpl = fetch,
-  } = opts;
-  const endpoint = `${url.replace(/\/$/, "")}/collections/${encodeURIComponent(
-    collection
-  )}/points/search`;
-  const body: any = {
-    vector,
-    limit,
-    // Limit payload fields to reduce payload size (use only title and content)
-    with_payload: { include: ["title", "content", "preview_url", "link"] },
-  };
-  if (filter) body.filter = filter;
-  if (typeof scoreThreshold === "number") body.score_threshold = scoreThreshold;
-  const res = await fetchWithRetry(
-    endpoint,
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "api-key": apiKey,
+  return measureAsync(`Qdrant Search (${opts.collection})`, async () => {
+    const {
+      url,
+      apiKey,
+      collection,
+      vector,
+      limit,
+      filter,
+      scoreThreshold,
+      fetchImpl = fetch,
+    } = opts;
+    
+    log('debug', 'Starting Qdrant search', {
+      collection,
+      vectorDimensions: vector.length,
+      limit,
+      scoreThreshold,
+      hasFilter: !!filter
+    });
+    
+    const endpoint = `${url.replace(/\/$/, "")}/collections/${encodeURIComponent(
+      collection
+    )}/points/search`;
+    
+    const body: any = {
+      vector,
+      limit,
+      with_payload: { include: ["title", "content", "preview_url", "link"] },
+    };
+    if (filter) body.filter = filter;
+    if (typeof scoreThreshold === "number") body.score_threshold = scoreThreshold;
+    
+    const res = await fetchWithRetry(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "api-key": apiKey,
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    },
-    { fetchImpl }
-  );
-  if (!res.ok) throw new Error(`Qdrant search error: ${res.status}`);
-  const json = (await res.json()) as any;
-  return (json.result ?? []) as QdrantHit[];
+      { fetchImpl }
+    );
+    
+    if (!res.ok) {
+      throw new Error(`Qdrant search error: ${res.status}`);
+    }
+    
+    const json = (await res.json()) as any;
+    const results = (json.result ?? []) as QdrantHit[];
+    
+    log('debug', 'Qdrant search completed', {
+      collection,
+      resultsCount: results.length,
+      avgScore: results.length > 0 ? results.reduce((sum, r) => sum + r.score, 0) / results.length : 0,
+      topScore: results.length > 0 ? Math.max(...results.map(r => r.score)) : 0
+    });
+    
+    return results;
+  });
 }

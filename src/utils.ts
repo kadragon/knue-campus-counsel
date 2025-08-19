@@ -323,3 +323,74 @@ export function allowRequest(
   rlBuckets.set(key, recent);
   return { allowed: true, retryAfterSec: 0 };
 }
+
+/**
+ * Performance timer utility for measuring function execution time
+ */
+export class PerformanceTimer {
+  private startTime: number;
+  private name: string;
+
+  constructor(name: string) {
+    this.name = name;
+    this.startTime = Date.now();
+    log("debug", `🕐 Starting ${this.name}`);
+  }
+
+  /**
+   * Mark an intermediate checkpoint
+   */
+  checkpoint(label: string): void {
+    const elapsed = Date.now() - this.startTime;
+    log("debug", `⏱️  ${this.name} - ${label}: ${elapsed}ms`);
+  }
+
+  /**
+   * Finish timing and log the final result
+   */
+  finish(): number {
+    const elapsed = Date.now() - this.startTime;
+    log("info", `✅ ${this.name} completed in ${elapsed}ms`);
+    return elapsed;
+  }
+
+  /**
+   * Get elapsed time without logging
+   */
+  getElapsed(): number {
+    return Date.now() - this.startTime;
+  }
+}
+
+/**
+ * Async function wrapper that automatically measures execution time
+ */
+export async function measureAsync<T>(
+  name: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const timer = new PerformanceTimer(name);
+  try {
+    const result = await fn();
+    timer.finish();
+    return result;
+  } catch (error) {
+    const elapsed = timer.getElapsed();
+    log("error", `❌ ${name} failed after ${elapsed}ms`, {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+/**
+ * Modern decorator-style performance measurement using higher-order function
+ */
+export function withTiming<TArgs extends any[], TReturn>(
+  name: string,
+  fn: (...args: TArgs) => Promise<TReturn>
+): (...args: TArgs) => Promise<TReturn> {
+  return async (...args: TArgs): Promise<TReturn> => {
+    return measureAsync(name, () => fn(...args));
+  };
+}
