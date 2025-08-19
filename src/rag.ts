@@ -1,7 +1,7 @@
 import { createEmbedding, chatComplete } from "./openai";
 import { qdrantSearch, QdrantHit } from "./qdrant";
 import { DocumentPayload } from "./types";
-import { loadSystemPrompt } from "./utils";
+import { loadSystemPrompt, PerformanceTimer, log } from "./utils";
 
 // 상수
 const DEFAULT_POLICY_URL = "https://www.knue.ac.kr/www/contents.do?key=392";
@@ -75,20 +75,72 @@ export function buildRag(opts: {
   return async function orchestrate(
     query: string
   ): Promise<{ answer: string; refs: { title?: string; url?: string }[] }> {
-    const v = await embed(preprocess(query));
-    const hits = await search(v, query);
-    const filtered = hits.filter(
-      (h) => typeof h.score === "number" && h.score >= scoreThreshold
-    );
-    if (!filtered.length) {
-      return { answer: "문서에서 해당 근거를 찾지 못했습니다.", refs: [] };
+    const timer = new PerformanceTimer(`RAG Pipeline - "${query.slice(0, 50)}..."`);
+    
+    log('info', 'Starting RAG pipeline', {
+      query: query.slice(0, 100),
+      queryLength: query.length,
+      model: opts.model,
+      topK: opts.topK,
+      scoreThreshold
+    });
+    
+    try {
+      timer.checkpoint('Starting embedding');
+      const v = await embed(preprocess(query));
+      
+      timer.checkpoint('Starting vector search');
+      const hits = await search(v, query);
+      
+      timer.checkpoint('Filtering results');
+      const filtered = hits.filter(
+        (h) => typeof h.score === "number" && h.score >= scoreThreshold
+      );
+      
+      log('debug', 'Search results filtered', {
+        totalHits: hits.length,
+        filteredHits: filtered.length,
+        scoreThreshold,
+        avgScore: filtered.length > 0 ? filtered.reduce((sum, h) => sum + h.score, 0) / filtered.length : 0
+      });
+      
+      if (!filtered.length) {
+        timer.finish();
+        log('info', 'No results found above threshold', { scoreThreshold });
+        return { answer: "문서에서 해당 근거를 찾지 못했습니다.", refs: [] };
+      }
+      
+      timer.checkpoint('Formatting context');
+      const context = formatContext(filtered);
+      const system = loadSystemPrompt();
+      const user = query;
+      
+      timer.checkpoint('Starting chat completion');
+      const content = await chat({ system, user, context });
+      
+      timer.checkpoint('Generating references');
+      const refs = dedupeRefs(filtered);
+      
+      const totalTime = timer.finish();
+      
+      log('info', 'RAG pipeline completed successfully', {
+        query: query.slice(0, 100),
+        totalTime,
+        resultsCount: filtered.length,
+        refsCount: refs.length,
+        responseLength: content.length
+      });
+      
+      return { answer: content, refs };
+    } catch (error) {
+      const elapsed = timer.getElapsed();
+      log('error', 'RAG pipeline failed', {
+        query: query.slice(0, 100),
+        elapsed,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
     }
-    const context = formatContext(filtered);
-    const system = loadSystemPrompt();
-    const user = query;
-    const content = await chat({ system, user, context });
-    const refs = dedupeRefs(filtered);
-    return { answer: content, refs };
   };
 }
 
@@ -117,6 +169,14 @@ export async function createEnhancedRag(cfg: {
     v: number[],
     query: string = ""
   ): Promise<NormalizedHit[]> => {
+    log('debug', 'Starting parallel search across collections', {
+      vectorDimensions: v.length,
+      policyTopK,
+      boardTopK,
+      policyCollection: cfg.qdrantCollection,
+      boardCollection: cfg.boardCollection
+    });
+
     // 기본 컬렉션과 게시판 컬렉션에서 동시 검색
     const [mainResults, boardResults] = await Promise.all([
       qdrantSearch({
@@ -137,10 +197,24 @@ export async function createEnhancedRag(cfg: {
       }),
     ]);
 
+    log('debug', 'Parallel search completed, processing results', {
+      mainResultsCount: mainResults.length,
+      boardResultsCount: boardResults.length,
+      totalRawResults: mainResults.length + boardResults.length
+    });
+
     // 결과 합치기 → normalize → rerank 순서로 처리
     const allResults = [...boardResults, ...mainResults];
     const normalizedResults = normalizeHits(allResults);
-    return rerankResults(normalizedResults, v, query);
+    const rerankedResults = rerankResults(normalizedResults, v, query);
+    
+    log('debug', 'Search results processed', {
+      normalizedCount: normalizedResults.length,
+      rerankedCount: rerankedResults.length,
+      topScores: rerankedResults.slice(0, 3).map(r => r.score)
+    });
+    
+    return rerankedResults;
   };
 
   const chat: ChatFn = async ({ system, user, context }) =>
