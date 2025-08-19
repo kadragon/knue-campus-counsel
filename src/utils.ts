@@ -32,10 +32,7 @@ export function renderMarkdownToTelegramHTML(input: string): string {
   });
 
   // Now escape HTML special characters in the remaining text
-  text = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  text = escapeHtml(text);
 
   // Convert markdown syntax
   text = text
