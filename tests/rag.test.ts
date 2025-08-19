@@ -6,7 +6,7 @@ vi.mock('../src/utils', async () => {
   const actual = await vi.importActual('../src/utils')
   return {
     ...actual,
-    loadSystemPrompt: vi.fn().mockResolvedValue('You are a helpful campus counseling assistant.')
+    loadSystemPrompt: vi.fn().mockReturnValue('You are a helpful campus counseling assistant.')
   }
 })
 
