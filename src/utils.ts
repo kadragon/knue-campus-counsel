@@ -87,14 +87,19 @@ export function splitTelegramMessage(text: string, maxLen = 4096): string[] {
 export function createLogEntry(
   level: LogEntry["level"],
   message: string,
-  metadata?: Partial<Omit<LogEntry, "timestamp" | "level" | "message">>
+  metadata?: Record<string, any>
 ): LogEntry {
-  return {
+  const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
     message,
-    ...metadata,
   };
+  
+  if (metadata && Object.keys(metadata).length > 0) {
+    entry.metadata = metadata;
+  }
+  
+  return entry;
 }
 
 /**
@@ -103,7 +108,7 @@ export function createLogEntry(
 export function log(
   level: LogEntry["level"],
   message: string,
-  metadata?: Partial<Omit<LogEntry, "timestamp" | "level" | "message">>
+  metadata?: Record<string, any>
 ): void {
   const entry = createLogEntry(level, message, metadata);
 

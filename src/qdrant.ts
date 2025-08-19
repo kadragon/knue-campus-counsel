@@ -64,7 +64,8 @@ export async function qdrantSearch(opts: {
     );
     
     if (!res.ok) {
-      throw new Error(`Qdrant search error: ${res.status}`);
+      const errorText = await res.text();
+      throw new Error(`Qdrant search error: ${res.status} - ${errorText}`);
     }
     
     const json = (await res.json()) as any;

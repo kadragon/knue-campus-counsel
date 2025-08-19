@@ -88,7 +88,7 @@ export interface LogEntry {
   latency?: number
   error?: string
   refs?: string[]
-  [key: string]: any
+  metadata?: Record<string, any>
 }
 
 export interface PerformanceMetrics {
