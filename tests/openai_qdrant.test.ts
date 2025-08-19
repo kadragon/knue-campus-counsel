@@ -37,7 +37,7 @@ describe('openai adapters', () => {
 
 describe('qdrant adapter', () => {
   it('POSTs /points/search with vector and limit', async () => {
-    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ result: [{ id: 'a', score: 0.9, payload: { title: 't' } }] }), { status: 200 }))
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ result: [{ id: 'a', score: 0.9, payload: { title: 't', content: 'test content', link: 'https://example.com' } }] }), { status: 200 }))
     const hits = await qdrantSearch({
       url: 'https://qdrant.example',
       apiKey: 'qk',
@@ -47,7 +47,14 @@ describe('qdrant adapter', () => {
       fetchImpl: fetchSpy as any,
     })
     expect(fetchSpy).toHaveBeenCalled()
+    
+    // Verify request body includes required payload fields
+    const call = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    const requestBody = JSON.parse(call[1].body as string)
+    expect(requestBody.with_payload.include).toEqual(['title', 'content', 'preview_url', 'link'])
+    
     expect(hits.length).toBe(1)
     expect(hits[0].score).toBe(0.9)
+    expect(hits[0].payload?.link).toBe('https://example.com')
   })
 })
