@@ -132,10 +132,10 @@ describe('Telegram Smart Streaming Logic', () => {
             states.push({ type: 'content_update', content })
             break
           case 'refs':
-            refs = event.data
+            refs = Array.isArray(event.data) ? event.data : []
             break
           case 'done':
-            states.push({ type: 'final', content, refs, ...event.data })
+            states.push({ type: 'final', content, refs, ...(typeof event.data === 'object' ? event.data : {}) })
             break
         }
       }

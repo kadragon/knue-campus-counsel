@@ -34,7 +34,7 @@ export function loadConfig(env: Env): AppConfig {
   if (!qdrantUrl) throw new Error('Missing QDRANT_URL or QDRANT_CLOUD_URL')
   if (!collection) throw new Error('Missing QDRANT_COLLECTION or COLLECTION_NAME')
   const chatModel = (env as any).OPENAI_CHAT_MODEL || 'gpt-4.1-mini'
-  const boardTopK = parseInt((env as any).BOARD_COLLECTION_TOP_K || '2', 10)
+  const boardTopK = parseInt((env as any).BOARD_COLLECTION_TOP_K || '5', 10)
   const policyTopK = parseInt((env as any).POLICY_COLLECTION_TOP_K || '3', 10)
   const rlWindowMs = parseInt((env as any).RATE_LIMIT_WINDOW_MS || '5000', 10)
   const rlMax = parseInt((env as any).RATE_LIMIT_MAX || '1', 10)

@@ -514,7 +514,9 @@ function calculateKeywordScore(text: string, keywords: string[]): number {
 }
 
 function formatContext(hits: NormalizedHit[]): string {
-  const parts = hits.map((hit, i) => {
+  // 상위 3개 문서만 컨텍스트로 사용
+  const topHits = hits.slice(0, 3);
+  const parts = topHits.map((hit, i) => {
     const sourceTypeText = hit.sourceType === "board" ? "게시물" : "규정";
 
     return `## 참고 문서 #${i + 1}
