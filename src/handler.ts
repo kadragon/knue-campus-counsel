@@ -1,6 +1,6 @@
 import { loadConfig } from './config'
-import { createEnhancedRag } from './rag'
-import { sendMessage, sendChatAction, editMessageText } from './telegram'
+import { createEnhancedRag, createEnhancedRagStream } from './rag'
+import { sendMessage, sendChatAction, editMessageText, handleSmartStreaming } from './telegram'
 import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from './utils'
 
 export interface Env {
@@ -75,31 +75,43 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return new Response(null, { status: 200 })
       }
 
-      // Perceived latency: show typing and placeholder message
-      await sendChatAction({ chatId, action: 'typing', botToken: cfg.telegram.botToken })
-      const pendingMsg = await sendMessage({ chatId, text: toTgHTML('답변 생성 중…'), botToken: cfg.telegram.botToken })
-      const pendingId: number | undefined = pendingMsg?.message_id
-
+      // 스마트 스트리밍 응답 사용
       if (cfg.logLevel === 'debug') {
-        console.log('Calling RAG with text:', text)
+        console.log('Calling RAG Stream with text:', text)
         console.log('Using model:', cfg.chatModel)
       }
-      const result = await getRagAnswer(text, cfg)
-      const full = `${result.answer}`
-      const chunks = splitTelegramMessage(toTgHTML(full), 4096)
-      if (pendingId && chunks.length) {
-        try {
-          await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
-        } catch (e) {
-          // Fallback: send as a new message if edit fails
-          await sendMessage({ chatId, text: chunks[0], botToken: cfg.telegram.botToken })
-        }
-        for (const c of chunks.slice(1)) {
-          await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
-        }
-      } else {
-        for (const c of chunks) {
-          await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
+      
+      try {
+        const ragStream = await getRagAnswerStream(text, cfg)
+        await handleSmartStreaming({
+          chatId,
+          botToken: cfg.telegram.botToken,
+          ragStream
+        })
+      } catch (error) {
+        console.error('Streaming failed, falling back to regular response:', error)
+        // 스트리밍 실패 시 기존 방식으로 폴백
+        await sendChatAction({ chatId, action: 'typing', botToken: cfg.telegram.botToken })
+        const pendingMsg = await sendMessage({ chatId, text: toTgHTML('답변 생성 중…'), botToken: cfg.telegram.botToken })
+        const pendingId: number | undefined = pendingMsg?.message_id
+
+        const result = await getRagAnswer(text, cfg)
+        const full = `${result.answer}`
+        const chunks = splitTelegramMessage(toTgHTML(full), 4096)
+        if (pendingId && chunks.length) {
+          try {
+            await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
+          } catch (e) {
+            // Fallback: send as a new message if edit fails
+            await sendMessage({ chatId, text: chunks[0], botToken: cfg.telegram.botToken })
+          }
+          for (const c of chunks.slice(1)) {
+            await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
+          }
+        } else {
+          for (const c of chunks) {
+            await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
+          }
         }
       }
       return new Response(null, { status: 200 })
@@ -134,6 +146,20 @@ async function getRagAnswer(question: string, cfg: any) {
     policyTopK: cfg.rag.policyTopK,
   })
   return await rag(question)
+}
+
+async function getRagAnswerStream(question: string, cfg: any) {
+  const ragStream = await createEnhancedRagStream({
+    openaiApiKey: cfg.openaiApiKey,
+    qdrantUrl: cfg.qdrant.url,
+    qdrantApiKey: cfg.qdrant.apiKey,
+    qdrantCollection: cfg.qdrant.collection,
+    boardCollection: cfg.qdrant.boardCollection,
+    model: cfg.chatModel,
+    boardTopK: cfg.rag.boardTopK,
+    policyTopK: cfg.rag.policyTopK,
+  })
+  return ragStream(question)
 }
 
 

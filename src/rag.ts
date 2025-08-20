@@ -1,4 +1,4 @@
-import { createEmbedding, chatComplete } from "./openai";
+import { createEmbedding, chatComplete, chatCompleteStream } from "./openai";
 import { qdrantSearch, QdrantHit } from "./qdrant";
 import { DocumentPayload } from "./types";
 import { loadSystemPrompt, PerformanceTimer, log } from "./utils";
@@ -23,6 +23,12 @@ type ChatFn = (prompt: {
   user: string;
   context: string;
 }) => Promise<string>;
+
+type ChatStreamFn = (prompt: {
+  system: string;
+  user: string;
+  context: string;
+}) => AsyncGenerator<string, void, unknown>;
 
 // Qdrant 결과를 통합 인터페이스로 변환
 function normalizeHits(hits: QdrantHit[]): NormalizedHit[] {
@@ -144,6 +150,100 @@ export function buildRag(opts: {
   };
 }
 
+export function buildRagStream(opts: {
+  embed: EmbedFn;
+  search: SearchFn;
+  chatStream: ChatStreamFn;
+  model: string;
+  topK: number;
+  scoreThreshold: number;
+}) {
+  const { embed, search, chatStream, scoreThreshold } = opts;
+  return async function* orchestrateStream(
+    query: string
+  ): AsyncGenerator<{ 
+    type: 'context' | 'content' | 'refs' | 'done'; 
+    data: any; 
+  }, void, unknown> {
+    const timer = new PerformanceTimer(`RAG Pipeline Stream - "${query.slice(0, 50)}..."`);
+    
+    log('info', 'Starting RAG pipeline stream', {
+      query: query.slice(0, 100),
+      queryLength: query.length,
+      model: opts.model,
+      topK: opts.topK,
+      scoreThreshold
+    });
+    
+    try {
+      timer.checkpoint('Starting embedding');
+      const v = await embed(preprocess(query));
+      
+      timer.checkpoint('Starting vector search');
+      const hits = await search(v, query);
+      
+      timer.checkpoint('Filtering results');
+      const filtered = hits.filter(
+        (h) => typeof h.score === "number" && h.score >= scoreThreshold
+      );
+      
+      log('debug', 'Search results filtered for stream', {
+        totalHits: hits.length,
+        filteredHits: filtered.length,
+        scoreThreshold,
+        avgScore: filtered.length > 0 ? filtered.reduce((sum, h) => sum + h.score, 0) / filtered.length : 0
+      });
+      
+      if (!filtered.length) {
+        timer.finish();
+        log('info', 'No results found above threshold for stream', { scoreThreshold });
+        yield { type: 'content', data: "문서에서 해당 근거를 찾지 못했습니다." };
+        yield { type: 'refs', data: [] };
+        yield { type: 'done', data: { totalTime: timer.getElapsed() } };
+        return;
+      }
+      
+      timer.checkpoint('Formatting context');
+      const context = formatContext(filtered);
+      const system = loadSystemPrompt();
+      const user = query;
+      
+      // 컨텍스트 정보 먼저 전송
+      yield { type: 'context', data: { resultsCount: filtered.length } };
+      
+      timer.checkpoint('Starting chat stream');
+      const refs = dedupeRefs(filtered);
+      
+      // 스트리밍 응답 시작
+      for await (const chunk of chatStream({ system, user, context })) {
+        yield { type: 'content', data: chunk };
+      }
+      
+      const totalTime = timer.finish();
+      
+      log('info', 'RAG pipeline stream completed successfully', {
+        query: query.slice(0, 100),
+        totalTime,
+        resultsCount: filtered.length,
+        refsCount: refs.length
+      });
+      
+      // 참고문헌과 완료 정보 전송
+      yield { type: 'refs', data: refs };
+      yield { type: 'done', data: { totalTime, resultsCount: filtered.length, refsCount: refs.length } };
+      
+    } catch (error) {
+      const elapsed = timer.getElapsed();
+      log('error', 'RAG pipeline stream failed', {
+        query: query.slice(0, 100),
+        elapsed,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  };
+}
+
 export async function createEnhancedRag(cfg: {
   openaiApiKey: string;
   qdrantUrl: string;
@@ -225,13 +325,109 @@ export async function createEnhancedRag(cfg: {
         { role: "system", content: system },
         { role: "user", content: buildUserMessage(user, context) },
       ],
-      maxTokens: 1000,
+      maxTokens: 500,
     });
 
   return buildRag({
     embed,
     search: searchBoth,
     chat,
+    model: cfg.model,
+    topK: policyTopK + boardTopK,
+    scoreThreshold,
+  });
+}
+
+export async function createEnhancedRagStream(cfg: {
+  openaiApiKey: string;
+  qdrantUrl: string;
+  qdrantApiKey: string;
+  qdrantCollection: string;
+  boardCollection: string;
+  model: string;
+  boardTopK: number;
+  policyTopK: number;
+  scoreThreshold?: number;
+}) {
+  const { boardTopK, policyTopK } = cfg;
+  const scoreThreshold = cfg.scoreThreshold ?? 0.2;
+
+  const embed: EmbedFn = (q) =>
+    createEmbedding({
+      apiKey: cfg.openaiApiKey,
+      input: q,
+      model: "text-embedding-3-large",
+    });
+
+  const searchBoth = async (
+    v: number[],
+    query: string = ""
+  ): Promise<NormalizedHit[]> => {
+    log('debug', 'Starting parallel search across collections for stream', {
+      vectorDimensions: v.length,
+      policyTopK,
+      boardTopK,
+      policyCollection: cfg.qdrantCollection,
+      boardCollection: cfg.boardCollection
+    });
+
+    // 기본 컬렉션과 게시판 컬렉션에서 동시 검색
+    const [mainResults, boardResults] = await Promise.all([
+      qdrantSearch({
+        url: cfg.qdrantUrl,
+        apiKey: cfg.qdrantApiKey,
+        collection: cfg.qdrantCollection,
+        vector: v,
+        limit: policyTopK,
+        scoreThreshold,
+      }),
+      qdrantSearch({
+        url: cfg.qdrantUrl,
+        apiKey: cfg.qdrantApiKey,
+        collection: cfg.boardCollection,
+        vector: v,
+        limit: boardTopK,
+        scoreThreshold,
+      }),
+    ]);
+
+    log('debug', 'Parallel search completed for stream, processing results', {
+      mainResultsCount: mainResults.length,
+      boardResultsCount: boardResults.length,
+      totalRawResults: mainResults.length + boardResults.length
+    });
+
+    // 결과 합치기 → normalize → rerank 순서로 처리
+    const allResults = [...boardResults, ...mainResults];
+    const normalizedResults = normalizeHits(allResults);
+    const rerankedResults = rerankResults(normalizedResults, v, query);
+    
+    log('debug', 'Search results processed for stream', {
+      normalizedCount: normalizedResults.length,
+      rerankedCount: rerankedResults.length,
+      topScores: rerankedResults.slice(0, 3).map(r => r.score)
+    });
+    
+    return rerankedResults;
+  };
+
+  const chatStream: ChatStreamFn = async function* ({ system, user, context }) {
+    yield* chatCompleteStream({
+      apiKey: cfg.openaiApiKey,
+      model: cfg.model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: buildUserMessage(user, context) },
+      ],
+      maxTokens: 500,
+      temperature: 0.1,
+    });
+  };
+
+  return buildRagStream({
+    embed,
+    search: searchBoth,
+    chatStream,
     model: cfg.model,
     topK: policyTopK + boardTopK,
     scoreThreshold,
