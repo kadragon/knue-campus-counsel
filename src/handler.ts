@@ -1,6 +1,6 @@
 import { loadConfig } from './config'
-import { createEnhancedRag, createEnhancedRagStream } from './rag'
-import { sendMessage, sendChatAction, editMessageText, handleSmartStreaming } from './telegram'
+import { createEnhancedRag } from './rag'
+import { sendMessage, sendChatAction, editMessageText, handleProgressiveStatus } from './telegram'
 import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from './utils'
 
 export interface Env {
@@ -75,44 +75,26 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return new Response(null, { status: 200 })
       }
 
-      // 스마트 스트리밍 응답 사용
+      // 단계별 상태 표시와 함께 답변 생성
       if (cfg.logLevel === 'debug') {
-        console.log('Calling RAG Stream with text:', text)
+        console.log('Calling RAG with text:', text)
         console.log('Using model:', cfg.chatModel)
       }
       
       try {
-        const ragStream = await getRagAnswerStream(text, cfg)
-        await handleSmartStreaming({
+        await handleProgressiveStatus({
           chatId,
           botToken: cfg.telegram.botToken,
-          ragStream
+          ragFunction: () => getRagAnswer(text, cfg)
         })
       } catch (error) {
-        console.error('Streaming failed, falling back to regular response:', error)
-        // 스트리밍 실패 시 기존 방식으로 폴백
-        await sendChatAction({ chatId, action: 'typing', botToken: cfg.telegram.botToken })
-        const pendingMsg = await sendMessage({ chatId, text: toTgHTML('답변 생성 중…'), botToken: cfg.telegram.botToken })
-        const pendingId: number | undefined = pendingMsg?.message_id
-
-        const result = await getRagAnswer(text, cfg)
-        const full = `${result.answer}`
-        const chunks = splitTelegramMessage(toTgHTML(full), 4096)
-        if (pendingId && chunks.length) {
-          try {
-            await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
-          } catch (e) {
-            // Fallback: send as a new message if edit fails
-            await sendMessage({ chatId, text: chunks[0], botToken: cfg.telegram.botToken })
-          }
-          for (const c of chunks.slice(1)) {
-            await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
-          }
-        } else {
-          for (const c of chunks) {
-            await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
-          }
-        }
+        console.error('Progressive status handling failed, falling back to simple response:', error)
+        // 에러 발생 시 간단한 에러 메시지만 전송
+        await sendMessage({ 
+          chatId, 
+          text: '❌ 죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 
+          botToken: cfg.telegram.botToken 
+        })
       }
       return new Response(null, { status: 200 })
     } catch (error) {
@@ -148,19 +130,6 @@ async function getRagAnswer(question: string, cfg: any) {
   return await rag(question)
 }
 
-async function getRagAnswerStream(question: string, cfg: any) {
-  const ragStream = await createEnhancedRagStream({
-    openaiApiKey: cfg.openaiApiKey,
-    qdrantUrl: cfg.qdrant.url,
-    qdrantApiKey: cfg.qdrant.apiKey,
-    qdrantCollection: cfg.qdrant.collection,
-    boardCollection: cfg.qdrant.boardCollection,
-    model: cfg.chatModel,
-    boardTopK: cfg.rag.boardTopK,
-    policyTopK: cfg.rag.policyTopK,
-  })
-  return ragStream(question)
-}
 
 
 async function handleAskRequest(request: Request, env: Env): Promise<Response> {

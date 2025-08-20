@@ -122,24 +122,18 @@ export async function getWebhookInfo(opts: { botToken: string; fetchImpl?: Fetch
   return json.result
 }
 
-export async function handleSmartStreaming(opts: {
+export async function handleProgressiveStatus(opts: {
   chatId: number
   botToken: string
-  ragStream: AsyncGenerator<{ type: 'context' | 'content' | 'refs' | 'done'; data: any; }, void, unknown>
+  ragFunction: () => Promise<{ answer: string; refs: { title?: string; url?: string }[] }>
   fetchImpl?: FetchLike
 }) {
-  const { chatId, botToken, ragStream, fetchImpl = fetch } = opts
+  const { chatId, botToken, ragFunction, fetchImpl = fetch } = opts
   
-  let messageContent = ''
   let messageId: number | null = null
-  let lastUpdate = 0
-  let refs: { title?: string; url?: string }[] = []
   
-  const UPDATE_INTERVAL = 2000 // 2초마다 업데이트
-  const MIN_CONTENT_LENGTH = 50 // 최소 50자부터 메시지 전송
-  
-  // 초기 "처리 중" 메시지 전송
   try {
+    // 1단계: 초기 분석 메시지
     const initialMsg = await sendMessage({
       chatId,
       text: '🤖 질문을 분석하고 있습니다...',
@@ -147,94 +141,78 @@ export async function handleSmartStreaming(opts: {
       fetchImpl
     })
     messageId = initialMsg.message_id
-  } catch (error) {
-    console.error('Failed to send initial message:', error)
-    throw error
-  }
 
-  try {
-    for await (const chunk of ragStream) {
-      const now = Date.now()
-      
-      switch (chunk.type) {
-        case 'context':
-          // 검색 결과 발견 시 상태 업데이트
-          try {
-            await editMessageText({
-              chatId,
-              messageId: messageId!,
-              text: `🔍 ${chunk.data.resultsCount}개의 관련 문서를 찾았습니다. 답변을 생성 중...`,
-              botToken,
-              fetchImpl
-            })
-          } catch (error) {
-            // 에러 무시 (rate limit 등)
-          }
-          break
-          
-        case 'content':
-          messageContent += chunk.data
-          
-          // 충분한 내용이 쌓이고 일정 시간이 지났을 때만 업데이트
-          if (messageContent.length >= MIN_CONTENT_LENGTH && 
-              now - lastUpdate > UPDATE_INTERVAL) {
-            try {
-              await editMessageText({
-                chatId,
-                messageId: messageId!,
-                text: messageContent + ' ⏳',
-                botToken,
-                fetchImpl
-              })
-              lastUpdate = now
-            } catch (error) {
-              // Rate limit 에러 등 무시
-            }
-          }
-          break
-          
-        case 'refs':
-          refs = chunk.data
-          break
-          
-        case 'done':
-          // 최종 메시지 완성
-          let finalMessage = messageContent
-          
-          if (refs.length > 0) {
-            finalMessage += '\n\n📚 <b>참고 문서:</b>\n'
-            refs.forEach((ref, i) => {
-              if (ref.title && ref.url) {
-                finalMessage += `${i + 1}. <a href="${ref.url}">${ref.title}</a>\n`
-              }
-            })
-          }
-          
-          // 최종 메시지 업데이트
-          try {
-            await editMessageText({
-              chatId,
-              messageId: messageId!,
-              text: finalMessage,
-              botToken,
-              fetchImpl
-            })
-          } catch (error) {
-            console.error('Failed to send final message:', error)
-          }
-          break
-      }
-    }
-  } catch (error) {
-    // 스트리밍 중 에러 발생 시 에러 메시지 전송
+    // 2단계: 문서 검색 상태 표시
     try {
       await editMessageText({
         chatId,
         messageId: messageId!,
-        text: '❌ 답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        text: '🔍 관련 문서를 검색하고 있습니다...',
         botToken,
         fetchImpl
       })
+    } catch (error) {
+      // 에러 무시 (rate limit 등)
+    }
+
+    // 실제 RAG 처리 실행
+    const result = await ragFunction()
+
+    // 3단계: 답변 생성 상태 표시
+    try {
+      await editMessageText({
+        chatId,
+        messageId: messageId!,
+        text: '💭 답변을 생성하고 있습니다...',
+        botToken,
+        fetchImpl
+      })
+    } catch (error) {
+      // 에러 무시
+    }
+
+    // 4단계: 최종 답변 표시
+    let finalMessage = result.answer
+    
+    if (result.refs.length > 0) {
+      finalMessage += '\n\n📚 <b>참고 문서:</b>\n'
+      let validRefIndex = 1
+      result.refs.forEach((ref) => {
+        if (ref.title && ref.url) {
+          finalMessage += `${validRefIndex}. <a href="${ref.url}">${ref.title}</a>\n`
+          validRefIndex++
+        }
+      })
+    }
+    
+    // 최종 메시지 업데이트
+    await editMessageText({
+      chatId,
+      messageId: messageId!,
+      text: finalMessage,
+      botToken,
+      fetchImpl
+    })
+
+  } catch (error) {
+    // 에러 발생 시 에러 메시지 전송
+    try {
+      if (messageId) {
+        await editMessageText({
+          chatId,
+          messageId: messageId!,
+          text: '❌ 답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+          botToken,
+          fetchImpl
+        })
+      } else {
+        await sendMessage({
+          chatId,
+          text: '❌ 답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+          botToken,
+          fetchImpl
+        })
+      }
     } catch (editError) {
       console.error('Failed to send error message:', editError)
     }

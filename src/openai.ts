@@ -14,7 +14,10 @@ export async function createEmbedding(opts: {
     log('debug', 'Creating OpenAI embedding', {
       model,
       inputType: Array.isArray(input) ? 'array' : 'string',
-      inputLength: Array.isArray(input) ? input.length : input.length
+      // 배열일 경우 아이템 수가 아니라 전체 문자열 길이 합계를 기록
+      inputLength: Array.isArray(input)
+        ? input.reduce((n, s) => n + (typeof s === 'string' ? s.length : 0), 0)
+        : input.length
     })
     
     const res = await fetchWithRetry('https://api.openai.com/v1/embeddings', {
