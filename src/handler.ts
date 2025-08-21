@@ -1,6 +1,6 @@
 import { loadConfig } from './config'
 import { createEnhancedRag } from './rag'
-import { sendMessage, sendChatAction, editMessageText } from './telegram'
+import { sendMessage, sendChatAction, editMessageText, handleProgressiveStatus } from './telegram'
 import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from './utils'
 
 export interface Env {
@@ -75,32 +75,26 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return new Response(null, { status: 200 })
       }
 
-      // Perceived latency: show typing and placeholder message
-      await sendChatAction({ chatId, action: 'typing', botToken: cfg.telegram.botToken })
-      const pendingMsg = await sendMessage({ chatId, text: toTgHTML('답변 생성 중…'), botToken: cfg.telegram.botToken })
-      const pendingId: number | undefined = pendingMsg?.message_id
-
+      // 단계별 상태 표시와 함께 답변 생성
       if (cfg.logLevel === 'debug') {
         console.log('Calling RAG with text:', text)
         console.log('Using model:', cfg.chatModel)
       }
-      const result = await getRagAnswer(text, cfg)
-      const full = `${result.answer}`
-      const chunks = splitTelegramMessage(toTgHTML(full), 4096)
-      if (pendingId && chunks.length) {
-        try {
-          await editMessageText({ chatId, messageId: pendingId, text: chunks[0], botToken: cfg.telegram.botToken })
-        } catch (e) {
-          // Fallback: send as a new message if edit fails
-          await sendMessage({ chatId, text: chunks[0], botToken: cfg.telegram.botToken })
-        }
-        for (const c of chunks.slice(1)) {
-          await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
-        }
-      } else {
-        for (const c of chunks) {
-          await sendMessage({ chatId, text: c, botToken: cfg.telegram.botToken })
-        }
+      
+      try {
+        await handleProgressiveStatus({
+          chatId,
+          botToken: cfg.telegram.botToken,
+          ragFunction: () => getRagAnswer(text, cfg)
+        })
+      } catch (error) {
+        console.error('Progressive status handling failed, falling back to simple response:', error)
+        // 에러 발생 시 간단한 에러 메시지만 전송
+        await sendMessage({ 
+          chatId, 
+          text: '❌ 죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 
+          botToken: cfg.telegram.botToken 
+        })
       }
       return new Response(null, { status: 200 })
     } catch (error) {
@@ -135,6 +129,7 @@ async function getRagAnswer(question: string, cfg: any) {
   })
   return await rag(question)
 }
+
 
 
 async function handleAskRequest(request: Request, env: Env): Promise<Response> {

@@ -44,7 +44,7 @@ describe('config.loadConfig', () => {
     const cfg = loadConfig(env as any)
     expect(cfg.qdrant.url).toBe('https://qdrant.cloud')
     expect(cfg.qdrant.collection).toBe('knue_policies')
-    expect(cfg.rag.boardTopK).toBe(2) // default value
+    expect(cfg.rag.boardTopK).toBe(5) // default value
     expect(cfg.rag.policyTopK).toBe(3) // default value
   })
 
@@ -70,7 +70,7 @@ describe('config.loadConfig', () => {
     delete (envWithoutTopK as any).POLICY_COLLECTION_TOP_K
     
     const cfg = loadConfig(envWithoutTopK as any)
-    expect(cfg.rag.boardTopK).toBe(2)
+    expect(cfg.rag.boardTopK).toBe(5)
     expect(cfg.rag.policyTopK).toBe(3)
   })
 })

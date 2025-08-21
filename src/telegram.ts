@@ -1,6 +1,7 @@
 import { fetchWithRetry } from './http'
 type FetchLike = typeof fetch
 
+
 export async function sendMessage(opts: {
   chatId: number
   text: string
@@ -120,4 +121,102 @@ export async function getWebhookInfo(opts: { botToken: string; fetchImpl?: Fetch
   if (!res.ok) throw new Error(`Telegram getWebhookInfo failed: ${res.status}`)
   const json = await res.json() as any
   return json.result
+}
+
+export async function handleProgressiveStatus(opts: {
+  chatId: number
+  botToken: string
+  ragFunction: () => Promise<{ answer: string; refs: { title?: string; url?: string }[] }>
+  fetchImpl?: FetchLike
+}) {
+  const { chatId, botToken, ragFunction, fetchImpl = fetch } = opts
+  
+  let messageId: number | null = null
+  
+  try {
+    // 1단계: 초기 분석 메시지
+    const initialMsg = await sendMessage({
+      chatId,
+      text: '🤖 질문을 분석하고 있습니다...',
+      botToken,
+      fetchImpl
+    })
+    messageId = initialMsg.message_id
+
+    // 2단계: 문서 검색 상태 표시
+    try {
+      await editMessageText({
+        chatId,
+        messageId: messageId!,
+        text: '🔍 관련 문서를 검색하고 있습니다...',
+        botToken,
+        fetchImpl
+      })
+    } catch (error) {
+      // 에러 무시 (rate limit 등)
+    }
+
+    // 실제 RAG 처리 실행
+    const result = await ragFunction()
+
+    // 3단계: 답변 생성 상태 표시
+    try {
+      await editMessageText({
+        chatId,
+        messageId: messageId!,
+        text: '💭 답변을 생성하고 있습니다...',
+        botToken,
+        fetchImpl
+      })
+    } catch (error) {
+      // 에러 무시
+    }
+
+    // 4단계: 최종 답변 표시
+    let finalMessage = result.answer
+    
+    if (result.refs.length > 0) {
+      finalMessage += '\n\n📚 <b>참고 문서:</b>\n'
+      let validRefIndex = 1
+      result.refs.forEach((ref) => {
+        if (ref.title && ref.url) {
+          finalMessage += `${validRefIndex}. <a href="${ref.url}">${ref.title}</a>\n`
+          validRefIndex++
+        }
+      })
+    }
+    
+    // 최종 메시지 업데이트
+    await editMessageText({
+      chatId,
+      messageId: messageId!,
+      text: finalMessage,
+      botToken,
+      fetchImpl
+    })
+
+  } catch (error) {
+    // 에러 발생 시 에러 메시지 전송
+    try {
+      if (messageId) {
+        await editMessageText({
+          chatId,
+          messageId: messageId!,
+          text: '❌ 답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+          botToken,
+          fetchImpl
+        })
+      } else {
+        await sendMessage({
+          chatId,
+          text: '❌ 답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+          botToken,
+          fetchImpl
+        })
+      }
+    } catch (editError) {
+      console.error('Failed to send error message:', editError)
+    }
+    throw error
+  }
 }
