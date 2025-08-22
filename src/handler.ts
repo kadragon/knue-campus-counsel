@@ -2,23 +2,17 @@ import { loadConfig } from './config'
 import { createEnhancedRag } from './rag'
 import { sendMessage, sendChatAction, editMessageText, handleProgressiveStatus } from './telegram'
 import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from './utils'
-
-export interface Env {
-  OPENAI_API_KEY: string
-  QDRANT_URL?: string
-  QDRANT_CLOUD_URL?: string
-  QDRANT_API_KEY: string
-  QDRANT_COLLECTION?: string
-  COLLECTION_NAME?: string
-  TELEGRAM_BOT_TOKEN: string
-  WEBHOOK_SECRET_TOKEN: string
-  ALLOWED_USER_IDS?: string
-  LOG_LEVEL?: 'info' | 'debug' | 'error'
-  OPENAI_CHAT_MODEL?: string
-}
+import { initializeRateLimiter, checkRateLimit } from './rate-limit/index.js'
+import type { Env } from './types.js'
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
+  const cfg = loadConfig(env)
+
+  // Initialize rate limiter if KV is available and enabled
+  if (env.RATE_LIMIT_KV && cfg.rateLimitKV.kvEnabled) {
+    initializeRateLimiter(env.RATE_LIMIT_KV, cfg.rateLimitKV)
+  }
 
   if (request.method === 'GET' && url.pathname === '/healthz') {
     return new Response('ok')
@@ -27,7 +21,6 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (request.method === 'POST' && url.pathname === '/ask') {
     return handleAskRequest(request, env)
   }
-
 
   if (request.method === 'POST' && url.pathname === '/telegram') {
     if (!validateTelegramWebhookSecret(request, env)) {
@@ -61,7 +54,40 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       // rate limiting per user
       const rlKey = fromId ? `tg:${fromId}` : (chatId ? `tg-chat:${chatId}` : 'tg:unknown')
-      const rl = allowRequest(rlKey, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+      
+      let rl: { allowed: boolean; retryAfterSec: number }
+      
+      // Use KV-based rate limiting if available and enabled
+      if (env.RATE_LIMIT_KV && cfg.rateLimitKV.kvEnabled) {
+        try {
+          const result = await checkRateLimit(
+            rlKey, 
+            cfg.rateLimitKV.windowMs, 
+            cfg.rateLimitKV.max,
+            {
+              userAgent: request.headers.get('user-agent'),
+              endpoint: 'telegram'
+            }
+          )
+          rl = { allowed: result.allowed, retryAfterSec: result.retryAfterSec }
+          
+          if (cfg.logLevel === 'debug') {
+            console.log('KV rate limit check:', rlKey, {
+              allowed: result.allowed,
+              remaining: result.remaining,
+              source: result.metadata?.source
+            })
+          }
+        } catch (error) {
+          // Fallback to memory-based rate limiting
+          console.warn('KV rate limiting failed, falling back to memory:', error)
+          rl = allowRequest(rlKey, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+        }
+      } else {
+        // Use original memory-based rate limiting
+        rl = allowRequest(rlKey, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+      }
+      
       if (!rl.allowed) {
         if (cfg.logLevel === 'debug') console.log('Rate limited:', rlKey, rl)
         // avoid extra messages; silently drop

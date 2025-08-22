@@ -119,3 +119,12 @@ export interface PerformanceMetrics {
     refsCount: number
   }
 }
+
+export interface Env {
+  OPENAI_API_KEY: string
+  QDRANT_API_KEY: string
+  TELEGRAM_BOT_TOKEN: string
+  WEBHOOK_SECRET_TOKEN?: string
+  RATE_LIMIT_KV?: any // KVNamespace는 runtime에만 사용 가능
+  [key: string]: any
+}
