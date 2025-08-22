@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildRag } from '../../src/rag'
+import { buildRag } from '../../src/rag/rag'
 
 describe('RAG refs dedup and threshold behavior', () => {
   it('deduplicates same title+url and keeps order', async () => {

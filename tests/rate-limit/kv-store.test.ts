@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { CloudflareKVStore, MockKVStore } from '../../src/rate-limit/kv-store.js'
 import type { RateLimitRecord } from '../../src/rate-limit/types.js'
-import * as utils from '../../src/utils.js'
+import * as utils from '../../src/utils/index.js'
 
 describe('KVStore implementations', () => {
   describe('MockKVStore', () => {
