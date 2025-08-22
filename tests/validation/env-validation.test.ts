@@ -27,7 +27,7 @@ describe('Environment Validation', () => {
           TELEGRAM_BOT_TOKEN: 'bot-token',
           QDRANT_URL: 'https://qdrant.example.com',
           QDRANT_COLLECTION: 'test-collection',
-        } as Env
+        } as any
 
         const result = validateEnv(env)
         expect(result.ok).toBe(false)
@@ -44,7 +44,7 @@ describe('Environment Validation', () => {
           TELEGRAM_BOT_TOKEN: 'bot-token',
           QDRANT_URL: 'https://qdrant.example.com',
           QDRANT_COLLECTION: 'test-collection',
-        } as Env
+        } as any
 
         const result = validateEnv(env)
         expect(result.ok).toBe(false)
@@ -61,7 +61,7 @@ describe('Environment Validation', () => {
           QDRANT_API_KEY: 'qdrant-key',
           QDRANT_URL: 'https://qdrant.example.com',
           QDRANT_COLLECTION: 'test-collection',
-        } as Env
+        } as any
 
         const result = validateEnv(env)
         expect(result.ok).toBe(false)
@@ -552,7 +552,7 @@ describe('Environment Validation', () => {
           RATE_LIMIT_MAX: '2000', // too high
           BOARD_COLLECTION_TOP_K: '100', // too high
           RATE_LIMIT_WINDOW_MS: '50', // too low
-        } as Env
+        } as any
 
         const result = validateEnv(env)
         expect(result.ok).toBe(false)
@@ -580,7 +580,7 @@ describe('Environment Validation', () => {
       const env = {
         QDRANT_API_KEY: 'qdrant-key',
         RATE_LIMIT_MAX: '2000', // invalid
-      } as Env
+      } as any
 
       expect(() => assertValidEnv(env)).toThrow('Invalid environment configuration')
     })
