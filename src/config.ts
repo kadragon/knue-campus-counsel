@@ -1,5 +1,6 @@
 import type { Env } from './types.js'
 import type { RateLimitConfig } from './rate-limit/types.js'
+import { assertValidEnv } from './env-validation.js'
 
 export type AppConfig = {
   openaiApiKey: string
@@ -14,6 +15,8 @@ export type AppConfig = {
 }
 
 export function loadConfig(env: Env): AppConfig {
+  // Extended validation with actionable errors
+  assertValidEnv(env)
   const required = [
     'OPENAI_API_KEY',
     // QDRANT_URL 또는 QDRANT_CLOUD_URL 중 하나 필요
@@ -46,11 +49,26 @@ export function loadConfig(env: Env): AppConfig {
     windowMs: rlWindowMs,
     max: rlMax,
     kvEnabled: (env as any).RATE_LIMIT_KV_ENABLED === 'true',
-    memoryCacheSize: parseInt((env as any).RATE_LIMIT_MEMORY_CACHE_SIZE || '1000', 10),
-    memoryCacheTTL: parseInt((env as any).RATE_LIMIT_MEMORY_CACHE_TTL || '300000', 10),
-    cleanupThreshold: parseInt((env as any).RATE_LIMIT_CLEANUP_THRESHOLD || '3600000', 10),
-    cleanupInterval: parseInt((env as any).RATE_LIMIT_CLEANUP_INTERVAL || '3600000', 10),
-    adaptiveEnabled: (env as any).RATE_LIMIT_ADAPTIVE_ENABLED === 'true'
+    // Prefer KV_* envs with legacy fallback to non-KV names
+    memoryCacheSize: parseInt(
+      (env as any).RATE_LIMIT_KV_MEMORY_CACHE_SIZE ?? (env as any).RATE_LIMIT_MEMORY_CACHE_SIZE ?? '1000',
+      10,
+    ),
+    memoryCacheTTL: parseInt(
+      (env as any).RATE_LIMIT_KV_MEMORY_CACHE_TTL ?? (env as any).RATE_LIMIT_MEMORY_CACHE_TTL ?? '300000',
+      10,
+    ),
+    cleanupThreshold: parseInt(
+      (env as any).RATE_LIMIT_KV_CLEANUP_THRESHOLD ?? (env as any).RATE_LIMIT_CLEANUP_THRESHOLD ?? '3600000',
+      10,
+    ),
+    cleanupInterval: parseInt(
+      (env as any).RATE_LIMIT_KV_CLEANUP_INTERVAL ?? (env as any).RATE_LIMIT_CLEANUP_INTERVAL ?? '3600000',
+      10,
+    ),
+    adaptiveEnabled:
+      (env as any).RATE_LIMIT_KV_ADAPTIVE_ENABLED === 'true' ||
+      (env as any).RATE_LIMIT_ADAPTIVE_ENABLED === 'true',
   }
   
   return {

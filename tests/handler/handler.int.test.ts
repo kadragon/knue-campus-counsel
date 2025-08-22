@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { handleRequest } from '../src/handler'
-import { MockKVStore } from '../src/rate-limit/kv-store.js'
+import { handleRequest } from '../../src/handler'
+import { MockKVStore } from '../../src/rate-limit/kv-store.js'
 
 const makeEnv = (overrides: Partial<Record<string, string>> = {}) => ({
   OPENAI_API_KEY: 'sk-test',
@@ -138,7 +138,7 @@ describe('handler', () => {
       
       // Reset rate limiter state
       try {
-        const module = await import('../src/rate-limit/index.js')
+        const module = await import('../../src/rate-limit/index.js')
         module.disposeRateLimiter()
       } catch {
         // Ignore if module not found

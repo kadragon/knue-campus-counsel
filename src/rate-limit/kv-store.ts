@@ -1,4 +1,5 @@
 import { log } from '../utils.js';
+import { getMetrics } from '../metrics-registry.js';
 import type { KVStore, RateLimitRecord } from './types.js';
 
 export class CloudflareKVStore implements KVStore {
@@ -15,6 +16,7 @@ export class CloudflareKVStore implements KVStore {
       }
       return value ? (value as RateLimitRecord) : null;
     } catch (error) {
+      try { getMetrics().incKvError('get') } catch {}
       log('error', 'KV get failed', { 
         key, 
         error: error instanceof Error ? error.message : String(error) 
@@ -37,6 +39,7 @@ export class CloudflareKVStore implements KVStore {
         log('debug', 'KV put operation', { key, ttl });
       }
     } catch (error) {
+      try { getMetrics().incKvError('put') } catch {}
       log('error', 'KV put failed', { 
         key, 
         error: error instanceof Error ? error.message : String(error) 
@@ -52,6 +55,7 @@ export class CloudflareKVStore implements KVStore {
         log('debug', 'KV delete operation', { key });
       }
     } catch (error) {
+      try { getMetrics().incKvError('delete') } catch {}
       log('error', 'KV delete failed', { 
         key, 
         error: error instanceof Error ? error.message : String(error) 
@@ -70,6 +74,7 @@ export class CloudflareKVStore implements KVStore {
       
       return keys;
     } catch (error) {
+      try { getMetrics().incKvError('list') } catch {}
       log('error', 'KV list failed', { 
         prefix, 
         error: error instanceof Error ? error.message : String(error) 

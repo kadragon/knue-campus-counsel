@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { allowRequest } from '../src/utils'
-import { initializeRateLimiter, checkRateLimit, disposeRateLimiter } from '../src/rate-limit/index.js'
-import { MockKVStore } from '../src/rate-limit/kv-store.js'
-import type { RateLimitConfig } from '../src/rate-limit/types.js'
+import { allowRequest } from '../../src/utils'
+import { initializeRateLimiter, checkRateLimit, disposeRateLimiter } from '../../src/rate-limit/index.js'
+import { MockKVStore } from '../../src/rate-limit/kv-store.js'
+import type { RateLimitConfig } from '../../src/rate-limit/types.js'
 
 describe('Legacy rate limiting (utils.allowRequest)', () => {
   it('allows first request and blocks subsequent within window', () => {
@@ -188,4 +188,3 @@ describe('KV-based rate limiting integration', () => {
     })
   })
 })
-

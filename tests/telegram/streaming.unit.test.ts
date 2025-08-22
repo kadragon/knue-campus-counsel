@@ -32,3 +32,4 @@ describe('Telegram Progressive Status Logic', () => {
     expect(formatted).not.toContain('시험 규정')
   })
 })
+

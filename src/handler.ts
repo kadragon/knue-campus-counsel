@@ -2,7 +2,9 @@ import { loadConfig } from './config'
 import { createEnhancedRag } from './rag'
 import { sendMessage, sendChatAction, editMessageText, handleProgressiveStatus } from './telegram'
 import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from './utils'
-import { initializeRateLimiter, checkRateLimit } from './rate-limit/index.js'
+import { initializeRateLimiter, checkRateLimit, getRateLimiterStats } from './rate-limit/index.js'
+import { CloudflareKVStore } from './rate-limit/kv-store.js'
+import { getMetrics } from './metrics-registry.js'
 import type { Env } from './types.js'
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
@@ -15,7 +17,40 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
 
   if (request.method === 'GET' && url.pathname === '/healthz') {
-    return new Response('ok')
+    const started = Date.now()
+    const kvEnabled = Boolean(env.RATE_LIMIT_KV) && cfg.rateLimitKV.kvEnabled
+    const kvStatus: any = { enabled: kvEnabled }
+
+    if (kvEnabled) {
+      try {
+        const kv = new CloudflareKVStore(env.RATE_LIMIT_KV, 'info')
+        const key = `health:v1:${Date.now()}:${Math.random().toString(36).slice(2)}`
+        const now = Date.now()
+        // Use RateLimitRecord-like object for compatibility with MockKVStore
+        const value = { timestamps: [now], windowMs: 1, maxRequests: 1, lastAccess: now }
+        await kv.put(key, value, 10)
+        const got = await kv.get(key)
+        // Best-effort cleanup when available
+        try { await (env.RATE_LIMIT_KV as any)?.delete?.(key) } catch {}
+        kvStatus.ok = Boolean(got)
+        kvStatus.roundTripMs = Date.now() - started
+        if (!kvStatus.ok) {
+          kvStatus.error = 'KV roundtrip failed'
+        }
+      } catch (error) {
+        kvStatus.ok = false
+        kvStatus.error = error instanceof Error ? error.message : String(error)
+      }
+    }
+
+    const rateLimiter = getRateLimiterStats()
+    const body = {
+      status: 'ok',
+      kv: kvStatus,
+      rateLimiter,
+      metrics: getMetrics().snapshot(),
+    }
+    return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
   }
 
   if (request.method === 'POST' && url.pathname === '/ask') {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createEmbedding, chatComplete } from '../src/openai'
-import { qdrantSearch } from '../src/qdrant'
+import { createEmbedding, chatComplete } from '../../src/openai'
+import { qdrantSearch } from '../../src/qdrant'
 
 describe('openai adapters', () => {
   it('calls embeddings endpoint with model + input', async () => {

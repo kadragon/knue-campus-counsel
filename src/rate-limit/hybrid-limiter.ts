@@ -1,4 +1,5 @@
 import { log } from '../utils.js';
+import { getMetrics } from '../metrics-registry.js';
 import { LRUCache } from './memory-cache.js';
 import type { KVStore, RateLimitRecord, RateLimitResult, RateLimitConfig } from './types.js';
 
@@ -54,6 +55,9 @@ export class HybridRateLimiter {
     // 1. 메모리 캐시 확인
     let record = this.memoryCache.get(rlKey);
     let source: 'cache' | 'kv' | 'new' = record ? 'cache' : 'new';
+    if (record) {
+      try { getMetrics().incL1Hit() } catch {}
+    }
     
     // 2. 캐시 미스 시 KV에서 로드
     if (!record && this.config.kvEnabled) {
@@ -158,6 +162,10 @@ export class HybridRateLimiter {
         kvEnabled: this.config.kvEnabled
       }
     };
+
+    try {
+      if (isAllowed) getMetrics().incAllow(); else getMetrics().incDeny();
+    } catch {}
 
     if (this.config.adaptiveEnabled && !isAllowed) {
       // 적응형 레이트 리밋 로직 (향후 구현)

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { setWebhook, deleteWebhook, getWebhookInfo } from '../src/telegram'
+import { setWebhook, deleteWebhook, getWebhookInfo } from '../../src/telegram'
 
 describe('telegram webhook scripts', () => {
   it('calls setWebhook with url and secret_token', async () => {
@@ -31,4 +31,3 @@ describe('telegram webhook scripts', () => {
     expect(info).toMatchObject({ url: 'u' })
   })
 })
-

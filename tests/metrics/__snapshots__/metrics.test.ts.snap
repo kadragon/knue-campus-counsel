@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Metrics (TDD) > starts with zeroed counters and stable snapshot 1`] = `
+{
+  "allow": 0,
+  "deny": 0,
+  "kvErrors": {
+    "delete": 0,
+    "get": 0,
+    "list": 0,
+    "put": 0,
+  },
+  "l1Hits": 0,
+}
+`;
