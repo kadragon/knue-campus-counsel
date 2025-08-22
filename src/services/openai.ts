@@ -1,5 +1,5 @@
 import { fetchWithRetry } from '../utils/http.js'
-import { measureAsync, log } from '../utils/utils.js'
+import { measureAsync, log } from '../utils/index.js'
 type FetchLike = typeof fetch
 
 export async function createEmbedding(opts: {

@@ -1,7 +1,7 @@
 import { loadConfig } from './config'
 import { createEnhancedRag } from '../rag/rag.js'
 import { sendMessage, sendChatAction, editMessageText, handleProgressiveStatus } from '../services/telegram.js'
-import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from '../utils/utils.js'
+import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from '../utils/index.js'
 import { initializeRateLimiter, checkRateLimit, getRateLimiterStats } from '../rate-limit/index.js'
 import { CloudflareKVStore } from '../rate-limit/kv-store.js'
 import { getMetrics } from '../metrics/metrics-registry.js'

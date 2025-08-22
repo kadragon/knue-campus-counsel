@@ -1,7 +1,7 @@
 import { createEmbedding, chatComplete, chatCompleteStream } from "../services/openai.js";
 import { qdrantSearch, QdrantHit } from "../services/qdrant.js";
 import { DocumentPayload } from "../core/types.js";
-import { loadSystemPrompt, PerformanceTimer, log } from "../utils/utils.js";
+import { loadSystemPrompt, PerformanceTimer, log } from "../utils/index.js";
 
 // 상수
 const DEFAULT_POLICY_URL = "https://www.knue.ac.kr/www/contents.do?key=392";

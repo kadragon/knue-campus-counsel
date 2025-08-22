@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { splitTelegramMessage, escapeHtml, renderMarkdownToTelegramHTML } from '../../src/utils/utils'
+import { splitTelegramMessage, escapeHtml, renderMarkdownToTelegramHTML } from '../../src/utils/index'
 
 describe('utils.splitTelegramMessage', () => {
   it('splits text into <=4096 chunks preserving words', () => {

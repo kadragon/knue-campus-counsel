@@ -1,4 +1,4 @@
-import { log } from '../utils/utils.js';
+import { log } from '../utils/index.js';
 import { getMetrics } from '../metrics/metrics-registry.js';
 import { LRUCache } from './memory-cache.js';
 import type { KVStore, RateLimitRecord, RateLimitResult, RateLimitConfig } from './types.js';

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { HybridRateLimiter } from '../../src/rate-limit/hybrid-limiter.js'
 import { MockKVStore } from '../../src/rate-limit/kv-store.js'
 import type { RateLimitConfig } from '../../src/rate-limit/types.js'
-import * as utils from '../../src/utils/utils.js'
+import * as utils from '../../src/utils/index.js'
 
 describe('HybridRateLimiter', () => {
   let mockKVStore: MockKVStore

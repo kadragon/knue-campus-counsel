@@ -1,4 +1,4 @@
-import { log } from '../utils/utils.js';
+import { log } from '../utils/index.js';
 import { getMetrics } from '../metrics/metrics-registry.js';
 import type { KVStore, RateLimitRecord } from './types.js';
 

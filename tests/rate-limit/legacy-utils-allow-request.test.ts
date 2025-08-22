@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { allowRequest } from '../../src/utils/utils'
+import { allowRequest } from '../../src/utils/index'
 import { initializeRateLimiter, checkRateLimit, disposeRateLimiter } from '../../src/rate-limit/index.js'
 import { MockKVStore } from '../../src/rate-limit/kv-store.js'
 import type { RateLimitConfig } from '../../src/rate-limit/types.js'

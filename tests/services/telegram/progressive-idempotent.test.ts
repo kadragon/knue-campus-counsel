@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { handleProgressiveStatus } from '../../../src/services/telegram'
-import { renderMarkdownToTelegramHTML, splitTelegramMessage } from '../../../src/utils/utils'
+import { renderMarkdownToTelegramHTML, splitTelegramMessage } from '../../../src/utils/index'
 
 describe('Telegram progressive status idempotency and utilities', () => {
   it('does not spam retries on edit failures; final edit attempted once', async () => {
