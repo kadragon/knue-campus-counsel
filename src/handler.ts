@@ -7,13 +7,16 @@ import { CloudflareKVStore } from './rate-limit/kv-store.js'
 import { getMetrics } from './metrics-registry.js'
 import type { Env } from './types.js'
 
+let rateLimiterInitialized = false
+
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   const cfg = loadConfig(env)
 
   // Initialize rate limiter if KV is available and enabled
-  if (env.RATE_LIMIT_KV && cfg.rateLimitKV.kvEnabled) {
+  if (!rateLimiterInitialized && env.RATE_LIMIT_KV && cfg.rateLimitKV.kvEnabled) {
     initializeRateLimiter(env.RATE_LIMIT_KV, cfg.rateLimitKV)
+    rateLimiterInitialized = true
   }
 
   if (request.method === 'GET' && url.pathname === '/healthz') {

@@ -26,24 +26,6 @@ export async function checkRateLimit(
   return await rateLimiter.checkRequest(key, windowMs, maxRequests, metadata);
 }
 
-// 기존 allowRequest 함수와의 호환성을 위한 어댑터
-export async function allowRequest(
-  key: string,
-  windowMs: number,
-  max: number
-): Promise<{ allowed: boolean; retryAfterSec: number }> {
-  const result = await checkRateLimit(key, windowMs, max);
-  return {
-    allowed: result.allowed,
-    retryAfterSec: result.retryAfterSec
-  };
-}
-
-export async function cleanupRateLimit(): Promise<void> {
-  if (rateLimiter) {
-    await rateLimiter.cleanup();
-  }
-}
 
 export function getRateLimiterStats(): any {
   if (!rateLimiter) {

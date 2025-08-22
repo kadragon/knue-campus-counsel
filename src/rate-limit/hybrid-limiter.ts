@@ -7,18 +7,12 @@ export class HybridRateLimiter {
   private memoryCache: LRUCache<RateLimitRecord>;
   private kvStore: KVStore;
   private config: RateLimitConfig;
-  private cleanupTimer?: any;
   private requestLocks: Map<string, boolean> = new Map();
 
   constructor(kvStore: KVStore, config: RateLimitConfig) {
     this.kvStore = kvStore;
     this.config = config;
     this.memoryCache = new LRUCache(config.memoryCacheSize, config.memoryCacheTTL);
-    
-    // 주기적 정리 작업 스케줄링
-    if (config.cleanupInterval > 0) {
-      this.scheduleCleanup();
-    }
   }
 
   async checkRequest(
@@ -136,10 +130,10 @@ export class HybridRateLimiter {
     
     record.lastAccess = now;
 
-    // 5. 캐시 업데이트
+    // 8. 캐시 업데이트
     this.memoryCache.set(rlKey, record);
 
-    // 6. KV 저장 (Write-through) - await for testing consistency
+    // 9. KV 저장 (Write-through) - await for testing consistency
     if (this.config.kvEnabled) {
       try {
         await this.persistToKV(rlKey, record);
@@ -184,55 +178,6 @@ export class HybridRateLimiter {
     await this.kvStore.put(key, record, ttl);
   }
 
-  // 백그라운드 정리 작업
-  async cleanup(): Promise<void> {
-    if (!this.config.kvEnabled) return;
-
-    try {
-      // 메모리 캐시 정리
-      this.memoryCache.cleanup();
-
-      // KV 정리
-      const keys = await this.kvStore.list('rl:v1:', 100);
-      const now = Date.now();
-      let cleaned = 0;
-
-      for (const key of keys) {
-        try {
-          const record = await this.kvStore.get(key);
-          if (!record || now - record.lastAccess > this.config.cleanupThreshold) {
-            await this.kvStore.delete(key);
-            cleaned++;
-          }
-        } catch (error) {
-          log('error', 'Cleanup failed for key', { 
-            key, 
-            error: error instanceof Error ? error.message : String(error) 
-          });
-        }
-      }
-
-      log('info', 'Rate limit cleanup completed', { 
-        cleaned, 
-        total: keys.length,
-        memoryStats: this.memoryCache.getStats()
-      });
-    } catch (error) {
-      log('error', 'Rate limit cleanup failed', { 
-        error: error instanceof Error ? error.message : String(error) 
-      });
-    }
-  }
-
-  private scheduleCleanup(): void {
-    this.cleanupTimer = setInterval(() => {
-      this.cleanup().catch(error => 
-        log('error', 'Scheduled cleanup failed', { 
-          error: error instanceof Error ? error.message : String(error) 
-        })
-      );
-    }, this.config.cleanupInterval);
-  }
 
   // 메모리 캐시 직접 접근 (테스트용)
   clearMemoryCache(): void {
@@ -245,10 +190,6 @@ export class HybridRateLimiter {
 
   // 리소스 정리
   dispose(): void {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = undefined;
-    }
     this.memoryCache.clear();
   }
 }
