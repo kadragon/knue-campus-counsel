@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { InMemoryMetrics } from '../../src/metrics'
-import { getMetrics, setMetrics } from '../../src/metrics-registry'
+import { InMemoryMetrics } from '../../src/metrics/metrics'
+import { getMetrics, setMetrics } from '../../src/metrics/metrics-registry'
 
 describe('Metrics snapshot immutability and registry', () => {
   let m: InMemoryMetrics

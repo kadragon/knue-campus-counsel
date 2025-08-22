@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 
 // We write tests first (TDD) to define the API
-import type { Metrics } from '../../src/metrics'
-import { InMemoryMetrics } from '../../src/metrics'
+import type { Metrics } from '../../src/metrics/metrics'
+import { InMemoryMetrics } from '../../src/metrics/metrics'
 
 describe('Metrics (TDD)', () => {
   let m: Metrics

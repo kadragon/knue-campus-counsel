@@ -1,4 +1,4 @@
-import { log } from '../utils.js';
+import { log } from '../utils/utils.js';
 
 interface CacheEntry<T> {
   value: T;

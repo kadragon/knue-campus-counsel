@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { PerformanceTimer, measureAsync } from '../../src/utils'
+import { PerformanceTimer, measureAsync } from '../../src/utils/utils'
 
 describe('Performance measurement', () => {
   beforeEach(() => {

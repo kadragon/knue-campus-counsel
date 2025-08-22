@@ -1,5 +1,5 @@
 name = "knue-campus-counsel"
-main = "src/handler.ts"
+main = "src/core/handler.ts"
 compatibility_date = "2024-08-16"
 
 [placement]

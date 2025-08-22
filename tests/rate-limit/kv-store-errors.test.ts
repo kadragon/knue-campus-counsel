@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CloudflareKVStore } from '../../src/rate-limit/kv-store.js'
-import { getMetrics, setMetrics } from '../../src/metrics-registry.js'
-import { InMemoryMetrics } from '../../src/metrics'
+import { getMetrics, setMetrics } from '../../src/metrics/metrics-registry.js'
+import { InMemoryMetrics } from '../../src/metrics/metrics'
 
 describe('KV store network error handling + metrics', () => {
   let kv: any
