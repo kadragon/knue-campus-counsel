@@ -160,11 +160,11 @@ src/
 tests/
 ├── core/             # 핵심 로직 테스트
 ├── services/         # 서비스 연동 테스트
-├── rag/             # RAG 시스템 테스트
-├── metrics/         # 메트릭 테스트
-├── validation/      # 검증 로직 테스트 (36개 테스트)
-├── utils/           # 유틸리티 테스트
-└── rate-limit/      # 속도 제한 시스템 테스트
+├── rag/              # RAG 시스템 테스트
+├── metrics/          # 메트릭 테스트
+├── validation/       # 검증 로직 테스트 (36개 테스트)
+├── utils/            # 유틸리티 테스트
+└── rate-limit/       # 속도 제한 시스템 테스트
 ```
 
 ### 데이터 플로우
