@@ -53,7 +53,7 @@ wrangler secret put QDRANT_API_KEY
 
 ```bash
 # Webhook 등록
-npm run webhook:set -- https://knue-campus-counsel.kangdongouk.workers.dev/telegram/webhook
+npm run webhook:set -- https://knue-campus-counsel.kangdongouk.workers.dev/telegram
 
 # Webhook 삭제
 npm run webhook:delete
@@ -78,9 +78,7 @@ npm run webhook:info
 ```bash
 POST /ask
 Content-Type: application/json
-X-Kakao-Webhook-Secret-Token: {WEBHOOK_SECRET_TOKEN}
-# 또는
-X-Telegram-Bot-Api-Secret-Token: {WEBHOOK_SECRET_TOKEN}
+X-Webhook-Secret-Token: {WEBHOOK_SECRET_TOKEN}
 
 {
   "question": "질문 내용"
@@ -113,37 +111,8 @@ X-Telegram-Bot-Api-Secret-Token: {WEBHOOK_SECRET_TOKEN}
 ```bash
 curl -X POST https://knue-campus-counsel.kangdongouk.workers.dev/ask \
   -H "Content-Type: application/json" \
-  -H "X-Kakao-Webhook-Secret-Token: your_webhook_secret" \
+  -H "X-Webhook-Secret-Token: your_webhook_secret" \
   -d '{"question": "졸업 요건이 궁금합니다"}'
-```
-
-### `/kakao` - 카카오 챗봇 API
-
-카카오 상담봇 스킬 서버용 엔드포인트입니다. 통합 웹훅 시크릿으로 검증하고, 카카오 템플릿 포맷으로 응답합니다.
-
-요청 헤더:
-
-- `X-Kakao-Webhook-Secret-Token: {WEBHOOK_SECRET_TOKEN}`
-
-요청 바디 예시:
-
-```json
-{
-  "action": {
-    "params": { "question": "장학금 신청 방법" }
-  }
-}
-```
-
-응답 예시:
-
-```json
-{
-  "version": "2.0",
-  "template": {
-    "outputs": [{ "simpleText": { "text": "답변 내용" } }]
-  }
-}
 ```
 
 ## 🏗️ 아키텍처
@@ -167,7 +136,7 @@ src/
 
 #### Telegram 봇 플로우
 
-1. **Telegram Webhook** → `POST /telegram/webhook`
+1. **Telegram Webhook** → `POST /telegram`
 2. **요청 검증** → `X-Telegram-Bot-Api-Secret-Token` 헤더 확인, 사용자 화이트리스트
 3. **RAG 파이프라인**:
    - 쿼리 전처리 (트리밍, 길이 제한)
@@ -181,7 +150,7 @@ src/
 #### Ask API 플로우
 
 1. **외부 시스템** → `POST /ask`
-2. **요청 검증** → `X-Kakao-Webhook-Secret-Token` 또는 `X-Telegram-Bot-Api-Secret-Token` 헤더 확인
+2. **요청 검증** → `X-Webhook-Secret-Token` 헤더 확인
 3. **RAG 파이프라인** (위와 동일)
 4. **JSON 응답** → `{ answer, references }`
 
@@ -260,9 +229,9 @@ wrangler tail --format pretty
 ## 🔒 보안
 
 - **비밀 관리**: Cloudflare Workers Secrets 사용
-- **Webhook 검증**: 공통 `WEBHOOK_SECRET_TOKEN` 사용
-  - Telegram: `X-Telegram-Bot-Api-Secret-Token` 헤더 지원
-  - 기타 시스템: `X-Kakao-Webhook-Secret-Token` 헤더 지원
+- **Webhook 검증**: `WEBHOOK_SECRET_TOKEN` 사용
+  - Telegram: `X-Telegram-Bot-Api-Secret-Token` 헤더
+  - Ask API: `X-Webhook-Secret-Token` 헤더
 - **사용자 제한**: `ALLOWED_USER_IDS` 화이트리스트 (선택)
 - **로그 마스킹**: 민감 정보 자동 마스킹
 - 로컬 개발 시 `.env`에는 실제 키를 보관하지 말고 예제로 제공된 `.env.example`를 참고하세요. 실제 배포 키는 Wrangler Secrets로만 관리합니다.

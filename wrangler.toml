@@ -13,3 +13,8 @@ LOG_LEVEL = "info"
 QDRANT_CLOUD_URL = "https://eb41d84d-297a-456d-944a-3bd1d061182b.us-east4-0.gcp.cloud.qdrant.io"
 QDRANT_COLLECTION = "knue_policies"
 BOARD_COLLECTION = "www-board-data"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "ff1c6ebb4b944a2c904128171ef99719"
+preview_id = "d7f84ca8f9054ad897e058b974dcb126"
