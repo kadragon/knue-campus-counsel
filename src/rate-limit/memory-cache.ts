@@ -34,6 +34,11 @@ export class LRUCache<T> {
   }
 
   set(key: string, value: T): void {
+    // maxSize가 0이면 아무것도 저장하지 않음
+    if (this.maxSize === 0) {
+      return;
+    }
+
     // 기존 키 제거 (재삽입을 위해)
     if (this.cache.has(key)) {
       this.cache.delete(key);

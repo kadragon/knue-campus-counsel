@@ -13,7 +13,7 @@ export class CloudflareKVStore implements KVStore {
       if (this.logLevel === 'debug') {
         log('debug', 'KV get operation', { key, found: !!value });
       }
-      return value as RateLimitRecord | null;
+      return value ? (value as RateLimitRecord) : null;
     } catch (error) {
       log('error', 'KV get failed', { 
         key, 

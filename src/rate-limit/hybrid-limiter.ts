@@ -7,6 +7,7 @@ export class HybridRateLimiter {
   private kvStore: KVStore;
   private config: RateLimitConfig;
   private cleanupTimer?: any;
+  private requestLocks: Map<string, boolean> = new Map();
 
   constructor(kvStore: KVStore, config: RateLimitConfig) {
     this.kvStore = kvStore;
@@ -27,6 +28,28 @@ export class HybridRateLimiter {
   ): Promise<RateLimitResult> {
     const now = Date.now();
     const rlKey = this.generateKey(key);
+
+    // Simple synchronization for concurrent requests to same key
+    while (this.requestLocks.get(rlKey)) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    this.requestLocks.set(rlKey, true);
+
+    try {
+      return await this._processRequest(rlKey, key, windowMs, maxRequests, metadata, now);
+    } finally {
+      this.requestLocks.delete(rlKey);
+    }
+  }
+
+  private async _processRequest(
+    rlKey: string,
+    key: string, 
+    windowMs: number, 
+    maxRequests: number,
+    metadata: any,
+    now: number
+  ): Promise<RateLimitResult> {
 
     // 1. 메모리 캐시 확인
     let record = this.memoryCache.get(rlKey);
@@ -59,14 +82,49 @@ export class HybridRateLimiter {
       };
     }
 
-    // 4. 윈도우 정리 및 요청 검증
+    // 4. 데이터 무결성 검증 및 복구
+    if (!Array.isArray(record.timestamps)) {
+      log('error', 'Corrupted rate limit data detected, resetting', { key: rlKey });
+      record.timestamps = [];
+    }
+
+    // 5. 윈도우 파라미터 업데이트 (기존 레코드의 설정 덮어쓰기)
+    record.windowMs = windowMs;
+    record.maxRequests = maxRequests;
+    if (metadata) {
+      record.metadata = metadata;
+    }
+
+    // 6. 윈도우 정리 및 요청 검증
     const windowStart = now - windowMs;
     record.timestamps = record.timestamps.filter(t => t > windowStart);
     
+    // 7. Zero limit 처리
+    if (maxRequests === 0) {
+      const result: RateLimitResult = {
+        allowed: false,
+        retryAfterSec: Math.ceil(windowMs / 1000),
+        remaining: 0,
+        resetTime: now + windowMs,
+        metadata: {
+          source,
+          kvEnabled: this.config.kvEnabled
+        }
+      };
+      
+      if (this.config.adaptiveEnabled) {
+        result.metadata!.escalated = false;
+      }
+      
+      return result;
+    }
+
     const isAllowed = record.timestamps.length < maxRequests;
     const retryAfterSec = isAllowed 
       ? 0 
-      : Math.ceil((record.timestamps[0] - windowStart) / 1000);
+      : record.timestamps.length > 0
+        ? Math.ceil((record.timestamps[0] + windowMs - now) / 1000)
+        : Math.ceil(windowMs / 1000);
 
     if (isAllowed) {
       record.timestamps.push(now);
@@ -77,14 +135,17 @@ export class HybridRateLimiter {
     // 5. 캐시 업데이트
     this.memoryCache.set(rlKey, record);
 
-    // 6. KV 비동기 저장 (Write-through)
+    // 6. KV 저장 (Write-through) - await for testing consistency
     if (this.config.kvEnabled) {
-      this.persistToKV(rlKey, record).catch(error => 
+      try {
+        await this.persistToKV(rlKey, record);
+      } catch (error) {
         log('error', 'KV persistence failed', { 
           key: rlKey, 
           error: error instanceof Error ? error.message : String(error) 
-        })
-      );
+        });
+        // Continue without throwing - graceful degradation
+      }
     }
 
     const result: RateLimitResult = {
