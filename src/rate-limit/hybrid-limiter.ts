@@ -31,7 +31,7 @@ export class HybridRateLimiter {
 
     // Simple synchronization for concurrent requests to same key
     while (this.requestLocks.get(rlKey)) {
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
     this.requestLocks.set(rlKey, true);
 

@@ -131,15 +131,15 @@ describe('handler', () => {
   describe('Rate limiting integration', () => {
     let cleanupFunctions: (() => void)[] = []
 
-    afterEach(() => {
+    afterEach(async () => {
       // Clean up any rate limiters
       cleanupFunctions.forEach(cleanup => cleanup())
       cleanupFunctions = []
       
       // Reset rate limiter state
       try {
-        const { disposeRateLimiter } = require('../src/rate-limit/index.js')
-        disposeRateLimiter()
+        const module = await import('../src/rate-limit/index.js')
+        module.disposeRateLimiter()
       } catch {
         // Ignore if module not found
       }

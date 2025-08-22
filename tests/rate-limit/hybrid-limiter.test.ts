@@ -450,8 +450,8 @@ describe('HybridRateLimiter', () => {
       )
       
       // TTL should be window + buffer (300 seconds)
-      const ttlCall = spy.mock.calls[0]
-      const ttl = ttlCall[2]
+      const ttlCall = spy.mock.calls[0] as any[]
+      const ttl = ttlCall?.[2] as number | undefined
       expect(ttl).toBe(Math.ceil((10000 + 300000) / 1000)) // 310 seconds
     })
   })

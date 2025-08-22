@@ -21,6 +21,8 @@ describe('KV-based rate limiting integration', () => {
   let mockKVStore: MockKVStore
   
   const testConfig: RateLimitConfig = {
+    windowMs: 5000,
+    max: 3,
     memoryCacheSize: 100,
     memoryCacheTTL: 60000,
     kvEnabled: true,

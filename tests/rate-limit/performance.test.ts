@@ -10,6 +10,8 @@ describe('Rate Limiting Performance Tests', () => {
   let logSpy: any
 
   const defaultConfig: RateLimitConfig = {
+    windowMs: 5000,
+    max: 10,
     memoryCacheSize: 1000,
     memoryCacheTTL: 60000,
     kvEnabled: true,
