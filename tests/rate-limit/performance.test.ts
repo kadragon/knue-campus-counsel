@@ -16,8 +16,6 @@ describe('Rate Limiting Performance Tests', () => {
     memoryCacheTTL: 60000,
     kvEnabled: true,
     adaptiveEnabled: false,
-    cleanupInterval: 0, // Disable auto cleanup for performance tests
-    cleanupThreshold: 3600000
   }
 
   beforeEach(() => {
@@ -246,45 +244,6 @@ describe('Rate Limiting Performance Tests', () => {
     })
   })
 
-  describe('Cleanup performance', () => {
-    it('should perform cleanup efficiently on large datasets', async () => {
-      const userCount = 1000
-      const windowMs = 30000
-      const maxRequests = 5
-
-      // Create many records
-      for (let i = 0; i < userCount; i++) {
-        await rateLimiter.checkRequest(`cleanup-user-${i}`, windowMs, maxRequests)
-      }
-
-      // Age half the records
-      const keys = await mockKVStore.list('rl:v1:', 1000)
-      for (let i = 0; i < keys.length / 2; i++) {
-        const record = await mockKVStore.get(keys[i])
-        if (record) {
-          record.lastAccess = Date.now() - 4000000 // Age beyond threshold
-          await mockKVStore.put(keys[i], record)
-        }
-      }
-
-      // Measure cleanup performance
-      const cleanupStartTime = performance.now()
-      await rateLimiter.cleanup()
-      const cleanupEndTime = performance.now()
-      const cleanupDuration = cleanupEndTime - cleanupStartTime
-
-      // Cleanup should be reasonably fast
-      expect(cleanupDuration).toBeLessThan(1000) // Less than 1 second
-
-      console.log(`Cleanup performance: ${cleanupDuration.toFixed(2)}ms for ${userCount} records`)
-      console.log(`Cleanup rate: ${(userCount / (cleanupDuration / 1000)).toFixed(2)} records/s`)
-
-      // Verify cleanup worked
-      const remainingKeys = await mockKVStore.list('rl:v1:', 1000)
-      expect(remainingKeys.length).toBeLessThan(userCount)
-      expect(remainingKeys.length).toBeGreaterThan(userCount / 3) // About half should remain
-    })
-  })
 
   describe('Latency benchmarks', () => {
     it('should maintain low latency under various conditions', async () => {

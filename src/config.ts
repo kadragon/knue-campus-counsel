@@ -58,14 +58,6 @@ export function loadConfig(env: Env): AppConfig {
       (env as any).RATE_LIMIT_KV_MEMORY_CACHE_TTL ?? (env as any).RATE_LIMIT_MEMORY_CACHE_TTL ?? '300000',
       10,
     ),
-    cleanupThreshold: parseInt(
-      (env as any).RATE_LIMIT_KV_CLEANUP_THRESHOLD ?? (env as any).RATE_LIMIT_CLEANUP_THRESHOLD ?? '3600000',
-      10,
-    ),
-    cleanupInterval: parseInt(
-      (env as any).RATE_LIMIT_KV_CLEANUP_INTERVAL ?? (env as any).RATE_LIMIT_CLEANUP_INTERVAL ?? '3600000',
-      10,
-    ),
     adaptiveEnabled:
       (env as any).RATE_LIMIT_KV_ADAPTIVE_ENABLED === 'true' ||
       (env as any).RATE_LIMIT_ADAPTIVE_ENABLED === 'true',

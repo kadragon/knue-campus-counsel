@@ -29,8 +29,6 @@ describe('Config boolean flags and precedence', () => {
     } as any)
     expect(cfg.rateLimitKV.memoryCacheSize).toBe(123)
     expect(cfg.rateLimitKV.memoryCacheTTL).toBe(456)
-    expect(cfg.rateLimitKV.cleanupInterval).toBe(789)
-    expect(cfg.rateLimitKV.cleanupThreshold).toBe(321)
     expect(cfg.rateLimitKV.adaptiveEnabled).toBe(true)
   })
 

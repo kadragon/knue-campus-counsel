@@ -16,8 +16,6 @@ describe('Rate Limiting Integration Tests', () => {
     memoryCacheTTL: 60000,
     kvEnabled: true,
     adaptiveEnabled: false,
-    cleanupInterval: 300000,
-    cleanupThreshold: 3600000
   }
 
   beforeEach(() => {
@@ -324,47 +322,6 @@ describe('Rate Limiting Integration Tests', () => {
     })
   })
 
-  describe('Cleanup operations', () => {
-    it('should perform comprehensive cleanup of old records', async () => {
-      const oldUserId = 'telegram:old-user'
-      const newUserId = 'telegram:new-user'
-
-      // Create old record with specific timestamp
-      const oldTime = Date.now()
-      await rateLimiter.checkRequest(oldUserId, 5000, 3)
-      
-      // Verify old record was created
-      let oldRecord = await mockKVStore.get('rl:v1:telegram:old-user')
-      expect(oldRecord).toBeTruthy()
-      
-      // Age the record by modifying its lastAccess time
-      if (oldRecord) {
-        oldRecord.lastAccess = oldTime - 4000000 // Over cleanup threshold
-        await mockKVStore.put('rl:v1:telegram:old-user', oldRecord)
-      }
-
-      // Create new record at current time
-      await rateLimiter.checkRequest(newUserId, 5000, 3)
-
-      // Verify both records exist
-      expect(await mockKVStore.get('rl:v1:telegram:old-user')).toBeTruthy()
-      expect(await mockKVStore.get('rl:v1:telegram:new-user')).toBeTruthy()
-
-      // Run cleanup
-      await rateLimiter.cleanup()
-
-      // Old record should be cleaned up, new record should remain
-      expect(await mockKVStore.get('rl:v1:telegram:old-user')).toBeNull()
-      expect(await mockKVStore.get('rl:v1:telegram:new-user')).toBeTruthy()
-
-      // Verify cleanup was logged
-      expect(logSpy).toHaveBeenCalledWith(
-        'info', 
-        'Rate limit cleanup completed', 
-        expect.objectContaining({ cleaned: 1, total: 2 })
-      )
-    })
-  })
 
   describe('Resource management', () => {
     it('should properly dispose of all resources', async () => {

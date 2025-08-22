@@ -42,7 +42,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         }
       } catch (error) {
         kvStatus.ok = false
-        kvStatus.error = error instanceof Error ? error.message : String(error)
+        kvStatus.error = 'KV error'
+        console.error('KV Health Check error:', error)
       }
     }
 

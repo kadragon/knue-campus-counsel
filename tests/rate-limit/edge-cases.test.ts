@@ -16,8 +16,6 @@ describe('Rate limit edge cases (batch 1)', () => {
       kvEnabled: true,
       memoryCacheSize: 100,
       memoryCacheTTL: 20, // very small to test TTL expiry
-      cleanupThreshold: 3600000,
-      cleanupInterval: 0,
       adaptiveEnabled: false,
     }
     limiter = new HybridRateLimiter(kv, config)

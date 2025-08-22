@@ -21,8 +21,6 @@ describe('HybridRateLimiter', () => {
       kvEnabled: true,
       memoryCacheSize: 100,
       memoryCacheTTL: 10000,
-      cleanupThreshold: 3600000,
-      cleanupInterval: 0, // Disable automatic cleanup for tests
       adaptiveEnabled: false
     }
     
@@ -254,51 +252,8 @@ describe('HybridRateLimiter', () => {
     })
   })
 
-  describe('Cleanup operations', () => {
-    it('should clean up old KV records', async () => {
-      // Create some records
-      await rateLimiter.checkRequest('user1', 5000, 3)
-      await rateLimiter.checkRequest('user2', 5000, 3)
-      await rateLimiter.checkRequest('user3', 5000, 3)
-      
-      // Advance time past cleanup threshold
-      vi.advanceTimersByTime(defaultConfig.cleanupThreshold + 1000)
-      
-      // Run cleanup
-      await rateLimiter.cleanup()
-      
-      // Old records should be cleaned
-      const user1Record = await mockKVStore.get('rl:v1:user1')
-      expect(user1Record).toBeNull()
-    })
-
-    it('should not clean up recent records', async () => {
-      await rateLimiter.checkRequest('user1', 5000, 3)
-      
-      // Advance time but not past threshold
-      vi.advanceTimersByTime(1000)
-      
-      await rateLimiter.cleanup()
-      
-      // Record should still exist
-      const user1Record = await mockKVStore.get('rl:v1:user1')
-      expect(user1Record).toBeTruthy()
-    })
-
-    it('should handle cleanup errors gracefully', async () => {
-      await rateLimiter.checkRequest('user1', 5000, 3)
-      
-      // Make KV operations fail
-      mockKVStore.shouldFail = true
-      
-      // Cleanup should not throw
-      await expect(rateLimiter.cleanup()).resolves.toBeUndefined()
-      
-      // Should log error
-      expect(logSpy).toHaveBeenCalledWith('error', expect.stringContaining('cleanup'), expect.any(Object))
-    })
-
-    it('should clean up memory cache as part of cleanup', async () => {
+  describe('Memory cache operations', () => {
+    it('should clear memory cache manually', async () => {
       // Add item to memory cache
       await rateLimiter.checkRequest('user1', 5000, 3)
       

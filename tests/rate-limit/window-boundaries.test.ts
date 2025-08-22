@@ -16,8 +16,6 @@ describe('Rate limiter window boundaries and isolation', () => {
       kvEnabled: true,
       memoryCacheSize: 100,
       memoryCacheTTL: 60_000,
-      cleanupThreshold: 3_600_000,
-      cleanupInterval: 0,
       adaptiveEnabled: false,
     }
   })
@@ -66,11 +64,4 @@ describe('Rate limiter window boundaries and isolation', () => {
     limiter.dispose()
   })
 
-  it('schedules cleanup and invokes cleanup periodically', async () => {
-    const limiter = new HybridRateLimiter(kv, { ...cfg, cleanupInterval: 100, kvEnabled: true })
-    const spy = vi.spyOn(limiter as any, 'cleanup')
-    vi.advanceTimersByTime(350)
-    expect(spy).toHaveBeenCalled()
-    limiter.dispose()
-  })
 })

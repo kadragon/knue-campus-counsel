@@ -51,20 +51,11 @@ export function validateEnv(env: Env): EnvValidationResult {
 
   const memorySize = num((env as any).RATE_LIMIT_MEMORY_CACHE_SIZE)
   const memoryTTL = num((env as any).RATE_LIMIT_MEMORY_CACHE_TTL)
-  const cleanupInterval = num((env as any).RATE_LIMIT_CLEANUP_INTERVAL)
-  const cleanupThreshold = num((env as any).RATE_LIMIT_CLEANUP_THRESHOLD)
-
   if (memorySize !== undefined && (!Number.isFinite(memorySize) || memorySize < 0 || memorySize > 100000)) {
     errors.push({ type: 'error', field: 'RATE_LIMIT_MEMORY_CACHE_SIZE', message: 'must be an integer between 0 and 100000' })
   }
   if (memoryTTL !== undefined && (!Number.isFinite(memoryTTL) || memoryTTL < 1 || memoryTTL > 86400000)) {
     errors.push({ type: 'error', field: 'RATE_LIMIT_MEMORY_CACHE_TTL', message: 'must be an integer between 1 and 86400000' })
-  }
-  if (cleanupInterval !== undefined && (!Number.isFinite(cleanupInterval) || cleanupInterval < 0 || cleanupInterval > 86400000)) {
-    errors.push({ type: 'error', field: 'RATE_LIMIT_CLEANUP_INTERVAL', message: 'must be an integer between 0 and 86400000' })
-  }
-  if (cleanupThreshold !== undefined && (!Number.isFinite(cleanupThreshold) || cleanupThreshold < 0 || cleanupThreshold > 604800000)) {
-    errors.push({ type: 'error', field: 'RATE_LIMIT_CLEANUP_THRESHOLD', message: 'must be an integer between 0 and 604800000' })
   }
 
   return { ok: errors.length === 0, errors, warnings }

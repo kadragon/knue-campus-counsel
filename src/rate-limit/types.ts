@@ -29,8 +29,6 @@ export interface RateLimitConfig {
   kvEnabled: boolean;
   memoryCacheSize: number;
   memoryCacheTTL: number;
-  cleanupThreshold: number;
-  cleanupInterval: number;
   adaptiveEnabled: boolean;
 }
 

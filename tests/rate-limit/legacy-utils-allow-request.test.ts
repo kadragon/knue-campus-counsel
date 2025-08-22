@@ -27,8 +27,6 @@ describe('KV-based rate limiting integration', () => {
     memoryCacheTTL: 60000,
     kvEnabled: true,
     adaptiveEnabled: false,
-    cleanupInterval: 0,
-    cleanupThreshold: 3600000
   }
 
   beforeEach(() => {
