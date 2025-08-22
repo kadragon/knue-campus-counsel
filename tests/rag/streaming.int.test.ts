@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { buildRagStream, createEnhancedRagStream } from '../src/rag'
-import type { QdrantHit } from '../src/qdrant'
+import { buildRagStream, createEnhancedRagStream } from '../../src/rag'
+import type { QdrantHit } from '../../src/qdrant'
 
 describe('RAG Streaming', () => {
   const mockConfig = {

@@ -2,32 +2,64 @@ import { loadConfig } from './config'
 import { createEnhancedRag } from './rag'
 import { sendMessage, sendChatAction, editMessageText, handleProgressiveStatus } from './telegram'
 import { renderMarkdownToTelegramHTML as toTgHTML, splitTelegramMessage, allowRequest } from './utils'
+import { initializeRateLimiter, checkRateLimit, getRateLimiterStats } from './rate-limit/index.js'
+import { CloudflareKVStore } from './rate-limit/kv-store.js'
+import { getMetrics } from './metrics-registry.js'
+import type { Env } from './types.js'
 
-export interface Env {
-  OPENAI_API_KEY: string
-  QDRANT_URL?: string
-  QDRANT_CLOUD_URL?: string
-  QDRANT_API_KEY: string
-  QDRANT_COLLECTION?: string
-  COLLECTION_NAME?: string
-  TELEGRAM_BOT_TOKEN: string
-  WEBHOOK_SECRET_TOKEN: string
-  ALLOWED_USER_IDS?: string
-  LOG_LEVEL?: 'info' | 'debug' | 'error'
-  OPENAI_CHAT_MODEL?: string
-}
+let rateLimiterInitialized = false
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
+  const cfg = loadConfig(env)
+
+  // Initialize rate limiter if KV is available and enabled
+  if (!rateLimiterInitialized && env.RATE_LIMIT_KV && cfg.rateLimitKV.kvEnabled) {
+    initializeRateLimiter(env.RATE_LIMIT_KV, cfg.rateLimitKV)
+    rateLimiterInitialized = true
+  }
 
   if (request.method === 'GET' && url.pathname === '/healthz') {
-    return new Response('ok')
+    const started = Date.now()
+    const kvEnabled = Boolean(env.RATE_LIMIT_KV) && cfg.rateLimitKV.kvEnabled
+    const kvStatus: any = { enabled: kvEnabled }
+
+    if (kvEnabled) {
+      try {
+        const kv = new CloudflareKVStore(env.RATE_LIMIT_KV, 'info')
+        const key = `health:v1:${Date.now()}:${Math.random().toString(36).slice(2)}`
+        const now = Date.now()
+        // Use RateLimitRecord-like object for compatibility with MockKVStore
+        const value = { timestamps: [now], windowMs: 1, maxRequests: 1, lastAccess: now }
+        await kv.put(key, value, 10)
+        const got = await kv.get(key)
+        // Best-effort cleanup when available
+        try { await (env.RATE_LIMIT_KV as any)?.delete?.(key) } catch {}
+        kvStatus.ok = Boolean(got)
+        kvStatus.roundTripMs = Date.now() - started
+        if (!kvStatus.ok) {
+          kvStatus.error = 'KV roundtrip failed'
+        }
+      } catch (error) {
+        kvStatus.ok = false
+        kvStatus.error = 'KV error'
+        console.error('KV Health Check error:', error)
+      }
+    }
+
+    const rateLimiter = getRateLimiterStats()
+    const body = {
+      status: 'ok',
+      kv: kvStatus,
+      rateLimiter,
+      metrics: getMetrics().snapshot(),
+    }
+    return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
   }
 
   if (request.method === 'POST' && url.pathname === '/ask') {
     return handleAskRequest(request, env)
   }
-
 
   if (request.method === 'POST' && url.pathname === '/telegram') {
     if (!validateTelegramWebhookSecret(request, env)) {
@@ -61,7 +93,40 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       // rate limiting per user
       const rlKey = fromId ? `tg:${fromId}` : (chatId ? `tg-chat:${chatId}` : 'tg:unknown')
-      const rl = allowRequest(rlKey, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+      
+      let rl: { allowed: boolean; retryAfterSec: number }
+      
+      // Use KV-based rate limiting if available and enabled
+      if (env.RATE_LIMIT_KV && cfg.rateLimitKV.kvEnabled) {
+        try {
+          const result = await checkRateLimit(
+            rlKey, 
+            cfg.rateLimitKV.windowMs, 
+            cfg.rateLimitKV.max,
+            {
+              userAgent: request.headers.get('user-agent'),
+              endpoint: 'telegram'
+            }
+          )
+          rl = { allowed: result.allowed, retryAfterSec: result.retryAfterSec }
+          
+          if (cfg.logLevel === 'debug') {
+            console.log('KV rate limit check:', rlKey, {
+              allowed: result.allowed,
+              remaining: result.remaining,
+              source: result.metadata?.source
+            })
+          }
+        } catch (error) {
+          // Fallback to memory-based rate limiting
+          console.warn('KV rate limiting failed, falling back to memory:', error)
+          rl = allowRequest(rlKey, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+        }
+      } else {
+        // Use original memory-based rate limiting
+        rl = allowRequest(rlKey, cfg.rateLimit.windowMs, cfg.rateLimit.max)
+      }
+      
       if (!rl.allowed) {
         if (cfg.logLevel === 'debug') console.log('Rate limited:', rlKey, rl)
         // avoid extra messages; silently drop

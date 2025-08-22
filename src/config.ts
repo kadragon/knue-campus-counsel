@@ -1,4 +1,6 @@
-import type { Env } from './handler'
+import type { Env } from './types.js'
+import type { RateLimitConfig } from './rate-limit/types.js'
+import { assertValidEnv } from './env-validation.js'
 
 export type AppConfig = {
   openaiApiKey: string
@@ -9,9 +11,12 @@ export type AppConfig = {
   chatModel: string
   rag: { boardTopK: number; policyTopK: number }
   rateLimit: { windowMs: number; max: number }
+  rateLimitKV: RateLimitConfig
 }
 
 export function loadConfig(env: Env): AppConfig {
+  // Extended validation with actionable errors
+  assertValidEnv(env)
   const required = [
     'OPENAI_API_KEY',
     // QDRANT_URL 또는 QDRANT_CLOUD_URL 중 하나 필요
@@ -39,6 +44,25 @@ export function loadConfig(env: Env): AppConfig {
   const rlWindowMs = parseInt((env as any).RATE_LIMIT_WINDOW_MS || '5000', 10)
   const rlMax = parseInt((env as any).RATE_LIMIT_MAX || '1', 10)
   
+  // KV 기반 레이트 리밋 설정
+  const rateLimitKV: RateLimitConfig = {
+    windowMs: rlWindowMs,
+    max: rlMax,
+    kvEnabled: (env as any).RATE_LIMIT_KV_ENABLED === 'true',
+    // Prefer KV_* envs with legacy fallback to non-KV names
+    memoryCacheSize: parseInt(
+      (env as any).RATE_LIMIT_KV_MEMORY_CACHE_SIZE ?? (env as any).RATE_LIMIT_MEMORY_CACHE_SIZE ?? '1000',
+      10,
+    ),
+    memoryCacheTTL: parseInt(
+      (env as any).RATE_LIMIT_KV_MEMORY_CACHE_TTL ?? (env as any).RATE_LIMIT_MEMORY_CACHE_TTL ?? '300000',
+      10,
+    ),
+    adaptiveEnabled:
+      (env as any).RATE_LIMIT_KV_ADAPTIVE_ENABLED === 'true' ||
+      (env as any).RATE_LIMIT_ADAPTIVE_ENABLED === 'true',
+  }
+  
   return {
     openaiApiKey: env.OPENAI_API_KEY,
     qdrant: {
@@ -59,6 +83,7 @@ export function loadConfig(env: Env): AppConfig {
       policyTopK,
     },
     rateLimit: { windowMs: rlWindowMs, max: rlMax },
+    rateLimitKV,
   }
 }
 

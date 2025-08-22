@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildRag } from '../src/rag'
+import { buildRag } from '../../src/rag'
 
 // Mock loadSystemPrompt
-vi.mock('../src/utils', async () => {
-  const actual = await vi.importActual('../src/utils')
+vi.mock('../../src/utils', async () => {
+  const actual = await vi.importActual('../../src/utils')
   return {
     ...actual,
     loadSystemPrompt: vi.fn().mockReturnValue('You are a helpful campus counseling assistant.')
@@ -41,4 +41,3 @@ describe('rag.orchestrate', () => {
     expect(res.refs.length).toBe(1)
   })
 })
-

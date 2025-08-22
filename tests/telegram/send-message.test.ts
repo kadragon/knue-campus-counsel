@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { sendMessage } from '../src/telegram'
+import { sendMessage } from '../../src/telegram'
 
 describe('telegram.sendMessage', () => {
   it('POSTs to Telegram sendMessage with HTML parse_mode', async () => {

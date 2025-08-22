@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fetchWithRetry } from '../src/http'
+import { fetchWithRetry } from '../../src/http'
 
 const immediate = async (ms: number) => {}
 
@@ -30,4 +30,3 @@ describe('fetchWithRetry', () => {
     ).rejects.toThrow(/timeout/i)
   })
 })
-

@@ -13,3 +13,22 @@ LOG_LEVEL = "info"
 QDRANT_CLOUD_URL = "https://eb41d84d-297a-456d-944a-3bd1d061182b.us-east4-0.gcp.cloud.qdrant.io"
 QDRANT_COLLECTION = "knue_policies"
 BOARD_COLLECTION = "www-board-data"
+
+# Rate Limiting Configuration
+RATE_LIMIT_WINDOW_MS = "5000"
+RATE_LIMIT_MAX = "1"
+RATE_LIMIT_KV_ENABLED = "true"
+RATE_LIMIT_KV_MEMORY_CACHE_SIZE = "1000"
+RATE_LIMIT_KV_MEMORY_CACHE_TTL = "300000"
+RATE_LIMIT_KV_ADAPTIVE_ENABLED = "false"
+RATE_LIMIT_KV_CLEANUP_INTERVAL = "300000"
+RATE_LIMIT_KV_CLEANUP_THRESHOLD = "3600000"
+
+# Search Result Configuration  
+BOARD_COLLECTION_TOP_K = "2"
+POLICY_COLLECTION_TOP_K = "3"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "ff1c6ebb4b944a2c904128171ef99719"
+preview_id = "d7f84ca8f9054ad897e058b974dcb126"

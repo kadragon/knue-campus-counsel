@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadConfig } from '../src/config'
+import { loadConfig } from '../../src/config'
 
 const base = {
   OPENAI_API_KEY: 'sk',

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { chatCompleteStream, chatComplete } from '../src/openai'
+import { chatCompleteStream, chatComplete } from '../../src/openai'
 
 describe('OpenAI API Streaming', () => {
   const mockApiKey = 'test-api-key'

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { handleRequest } from '../src/handler'
+import { handleRequest } from '../../src/handler'
 
 const makeEnv = (overrides: Partial<Record<string, string>> = {}) => ({
   OPENAI_API_KEY: 'sk-test',
