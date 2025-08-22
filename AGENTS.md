@@ -2,10 +2,19 @@
 
 ## Project Structure & Module Organization
 
-- Source: `src/` — `handler.ts` (Cloudflare Worker entry), `rag.ts` (RAG orchestration with Markdown context), `openai.ts`, `qdrant.ts` (unified payload support), `telegram.ts`, `config.ts`, `http.ts`, `utils.ts` (inline system prompt), `types.ts`.
-- Tests: `tests/**/*.test.ts` (Vitest). CI runs typecheck + tests on PRs and `main`.
-- Scripts: `scripts/webhook.mjs` (Telegram webhook manage).
-- Config: `wrangler.toml` (deployment/env), `tsconfig.json`, `vitest.config.js`, `.env.example` (environment template).
+### Source Code Structure
+- `src/core/` — Core application logic (`handler.ts` entry point, `config.ts` environment loading, `types.ts` TypeScript definitions)
+- `src/services/` — External service integrations (`openai.ts` embedding/chat, `qdrant.ts` vector search, `telegram.ts` bot API)
+- `src/rag/` — RAG pipeline orchestration with Markdown context formatting
+- `src/metrics/` — Metrics collection system (`metrics.ts`, `metrics-registry.ts`)
+- `src/validation/` — Data validation logic (`env-validation.ts` comprehensive environment validation)
+- `src/utils/` — Utility functions (`http.ts` retry/timeout, `utils.ts` logging/formatting/system prompt)
+- `src/rate-limit/` — KV-based rate limiting system (hybrid memory+KV, sliding window, per-user limits)
+
+### Tests & Configuration
+- Tests: `tests/**/*.test.ts` (Vitest, 225+ tests including comprehensive validation tests)
+- Scripts: `scripts/webhook.mjs` (Telegram webhook management)
+- Config: `wrangler.toml` (deployment/env), `tsconfig.json`, `vitest.config.js`, `.env.example`
 
 ## Build, Test, and Development Commands
 
@@ -31,8 +40,13 @@
 ## Testing Guidelines
 
 - Framework: Vitest. Include files: `**/*.test.ts` (see `vitest.config.js`).
-- Write unit tests for utils/adapters and integration tests for the RAG pipeline (mock `fetch`).
-- Rate limiting tests verify per-user throttling behavior.
+- **Comprehensive Test Coverage**: 225+ tests across all modules
+  - Unit tests for utils/adapters and service integrations
+  - Integration tests for RAG pipeline (mock `fetch`)
+  - Rate limiting performance and edge case tests
+  - **Validation tests**: 36 comprehensive tests for environment validation
+  - Error scenarios: retry, timeout, 429 errors
+- **Test Structure**: Mirrors `src/` organization (`tests/core/`, `tests/services/`, etc.)
 - Run locally with `npm test`; CI enforces `npm run typecheck` and `npm test`.
 
 ## Commit & Pull Request Guidelines
