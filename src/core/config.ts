@@ -4,6 +4,7 @@ import { assertValidEnv } from '../validation/env-validation.js'
 
 export type AppConfig = {
   openaiApiKey: string
+  openai: { apiKey: string; baseUrl: string; gatewayEnabled: boolean }
   qdrant: { url: string; apiKey: string; collection: string; boardCollection: string }
   telegram: { botToken: string; webhookSecret: string }
   allowedUserIds: Set<number> | undefined
@@ -44,6 +45,9 @@ export function loadConfig(env: Env): AppConfig {
   const rlWindowMs = parseInt((env as any).RATE_LIMIT_WINDOW_MS || '5000', 10)
   const rlMax = parseInt((env as any).RATE_LIMIT_MAX || '1', 10)
   
+  // AI Gateway 구성
+  const openaiConfig = configureOpenAIGateway(env)
+  
   // KV 기반 레이트 리밋 설정
   const rateLimitKV: RateLimitConfig = {
     windowMs: rlWindowMs,
@@ -65,6 +69,7 @@ export function loadConfig(env: Env): AppConfig {
   
   return {
     openaiApiKey: env.OPENAI_API_KEY,
+    openai: openaiConfig,
     qdrant: {
       url: qdrantUrl,
       apiKey: env.QDRANT_API_KEY,
@@ -84,6 +89,55 @@ export function loadConfig(env: Env): AppConfig {
     },
     rateLimit: { windowMs: rlWindowMs, max: rlMax },
     rateLimitKV,
+  }
+}
+
+function configureOpenAIGateway(env: Env): { apiKey: string; baseUrl: string; gatewayEnabled: boolean } {
+  const apiKey = env.OPENAI_API_KEY
+  
+  // Custom base URL override
+  const customBaseUrl = (env as any).CF_AI_GATEWAY_BASE_URL
+  if (customBaseUrl) {
+    return {
+      apiKey,
+      baseUrl: customBaseUrl,
+      gatewayEnabled: true
+    }
+  }
+  
+  // CF AI Gateway configuration
+  const accountId = (env as any).CF_AI_GATEWAY_ACCOUNT_ID
+  const gatewayName = (env as any).CF_AI_GATEWAY_NAME
+  
+  // Validate AI Gateway parameters
+  if (accountId !== undefined && gatewayName === undefined) {
+    throw new Error('Both CF_AI_GATEWAY_ACCOUNT_ID and CF_AI_GATEWAY_NAME are required for AI Gateway')
+  }
+  if (gatewayName !== undefined && accountId === undefined) {
+    throw new Error('Both CF_AI_GATEWAY_ACCOUNT_ID and CF_AI_GATEWAY_NAME are required for AI Gateway')
+  }
+  
+  // Check for empty string values when both are provided
+  if (accountId !== undefined && gatewayName !== undefined) {
+    if (!accountId || !accountId.trim()) {
+      throw new Error('CF_AI_GATEWAY_ACCOUNT_ID cannot be empty')
+    }
+    if (!gatewayName || !gatewayName.trim()) {
+      throw new Error('CF_AI_GATEWAY_NAME cannot be empty')
+    }
+    
+    return {
+      apiKey,
+      baseUrl: `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayName}/openai`,
+      gatewayEnabled: true
+    }
+  }
+  
+  // Default OpenAI configuration
+  return {
+    apiKey,
+    baseUrl: 'https://api.openai.com/v1',
+    gatewayEnabled: false
   }
 }
 

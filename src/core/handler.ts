@@ -184,6 +184,7 @@ function validateWebhookSecret(request: Request, env: Env): boolean {
 async function getRagAnswer(question: string, cfg: any) {
   const rag = await createEnhancedRag({
     openaiApiKey: cfg.openaiApiKey,
+    openaiBaseUrl: cfg.openai.baseUrl,
     qdrantUrl: cfg.qdrant.url,
     qdrantApiKey: cfg.qdrant.apiKey,
     qdrantCollection: cfg.qdrant.collection,

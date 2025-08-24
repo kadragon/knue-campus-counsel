@@ -28,6 +28,14 @@ RATE_LIMIT_KV_CLEANUP_THRESHOLD = "3600000"
 BOARD_COLLECTION_TOP_K = "2"
 POLICY_COLLECTION_TOP_K = "3"
 
+# Cloudflare AI Gateway Configuration (Optional)
+# Uncomment and configure these variables to use CF AI Gateway for OpenAI API calls
+# This can help bypass regional restrictions and provide additional analytics
+CF_AI_GATEWAY_ACCOUNT_ID = "6ed03d41ee9287a3e0e5bde9a6772812"
+CF_AI_GATEWAY_NAME = "knue-campus-counsel-gateway"
+# Alternative: Use custom base URL
+# CF_AI_GATEWAY_BASE_URL = "https://custom-gateway.example.com/v1/openai"
+
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "ff1c6ebb4b944a2c904128171ef99719"
