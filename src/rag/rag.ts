@@ -246,6 +246,7 @@ export function buildRagStream(opts: {
 
 export async function createEnhancedRag(cfg: {
   openaiApiKey: string;
+  openaiBaseUrl?: string;
   qdrantUrl: string;
   qdrantApiKey: string;
   qdrantCollection: string;
@@ -263,6 +264,7 @@ export async function createEnhancedRag(cfg: {
       apiKey: cfg.openaiApiKey,
       input: q,
       model: "text-embedding-3-large",
+      baseUrl: cfg.openaiBaseUrl,
     });
 
   const searchBoth = async (
@@ -326,6 +328,7 @@ export async function createEnhancedRag(cfg: {
         { role: "user", content: buildUserMessage(user, context) },
       ],
       maxTokens: 500,
+      baseUrl: cfg.openaiBaseUrl,
     });
 
   return buildRag({
@@ -340,6 +343,7 @@ export async function createEnhancedRag(cfg: {
 
 export async function createEnhancedRagStream(cfg: {
   openaiApiKey: string;
+  openaiBaseUrl?: string;
   qdrantUrl: string;
   qdrantApiKey: string;
   qdrantCollection: string;
@@ -357,6 +361,7 @@ export async function createEnhancedRagStream(cfg: {
       apiKey: cfg.openaiApiKey,
       input: q,
       model: "text-embedding-3-large",
+      baseUrl: cfg.openaiBaseUrl,
     });
 
   const searchBoth = async (
@@ -421,6 +426,7 @@ export async function createEnhancedRagStream(cfg: {
       ],
       maxTokens: 500,
       temperature: 0.1,
+      baseUrl: cfg.openaiBaseUrl,
     });
   };
 

@@ -6,13 +6,15 @@ export async function createEmbedding(opts: {
   apiKey: string
   input: string | string[]
   model: string
+  baseUrl?: string
   fetchImpl?: FetchLike
 }): Promise<number[]> {
   return measureAsync('OpenAI Embedding API', async () => {
-    const { apiKey, input, model, fetchImpl = fetch } = opts
+    const { apiKey, input, model, baseUrl = 'https://api.openai.com/v1', fetchImpl = fetch } = opts
     
     log('debug', 'Creating OpenAI embedding', {
       model,
+      baseUrl,
       inputType: Array.isArray(input) ? 'array' : 'string',
       // 배열일 경우 아이템 수가 아니라 전체 문자열 길이 합계를 기록
       inputLength: Array.isArray(input)
@@ -20,7 +22,7 @@ export async function createEmbedding(opts: {
         : input.length
     })
     
-    const res = await fetchWithRetry('https://api.openai.com/v1/embeddings', {
+    const res = await fetchWithRetry(`${baseUrl}/embeddings`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -52,13 +54,15 @@ export async function chatComplete(opts: {
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
   temperature?: number
   maxTokens?: number
+  baseUrl?: string
   fetchImpl?: FetchLike
 }): Promise<string> {
   return measureAsync('OpenAI Chat Completion API', async () => {
-    const { apiKey, model, messages, temperature = 0.1, maxTokens = 500, fetchImpl = fetch } = opts
+    const { apiKey, model, messages, temperature = 0.1, maxTokens = 500, baseUrl = 'https://api.openai.com/v1', fetchImpl = fetch } = opts
     
     log('debug', 'Starting OpenAI chat completion', {
       model,
+      baseUrl,
       messageCount: messages.length,
       temperature,
       maxTokens,
@@ -66,7 +70,7 @@ export async function chatComplete(opts: {
       userPromptLength: messages.find(m => m.role === 'user')?.content?.length
     })
     
-    const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
+    const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -101,12 +105,14 @@ export async function* chatCompleteStream(opts: {
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
   temperature?: number
   maxTokens?: number
+  baseUrl?: string
   fetchImpl?: FetchLike
 }): AsyncGenerator<string, void, unknown> {
-  const { apiKey, model, messages, temperature = 0.1, maxTokens = 500, fetchImpl = fetch } = opts
+  const { apiKey, model, messages, temperature = 0.1, maxTokens = 500, baseUrl = 'https://api.openai.com/v1', fetchImpl = fetch } = opts
   
   log('debug', 'Starting OpenAI chat completion stream', {
     model,
+    baseUrl,
     messageCount: messages.length,
     temperature,
     maxTokens,
@@ -114,7 +120,7 @@ export async function* chatCompleteStream(opts: {
     userPromptLength: messages.find(m => m.role === 'user')?.content?.length
   })
 
-  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
