@@ -29,7 +29,7 @@ BOARD_COLLECTION_TOP_K = "2"
 POLICY_COLLECTION_TOP_K = "3"
 
 # Cloudflare AI Gateway Configuration (Optional)
-# Uncomment and configure these variables to use CF AI Gateway for OpenAI API calls
+# Configure these variables to use CF AI Gateway for OpenAI API calls
 # This can help bypass regional restrictions and provide additional analytics
 CF_AI_GATEWAY_ACCOUNT_ID = "6ed03d41ee9287a3e0e5bde9a6772812"
 CF_AI_GATEWAY_NAME = "knue-campus-counsel-gateway"

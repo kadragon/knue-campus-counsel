@@ -110,10 +110,7 @@ function configureOpenAIGateway(env: Env): { apiKey: string; baseUrl: string; ga
   const gatewayName = (env as any).CF_AI_GATEWAY_NAME
   
   // Validate AI Gateway parameters
-  if (accountId !== undefined && gatewayName === undefined) {
-    throw new Error('Both CF_AI_GATEWAY_ACCOUNT_ID and CF_AI_GATEWAY_NAME are required for AI Gateway')
-  }
-  if (gatewayName !== undefined && accountId === undefined) {
+  if ((accountId !== undefined) !== (gatewayName !== undefined)) {
     throw new Error('Both CF_AI_GATEWAY_ACCOUNT_ID and CF_AI_GATEWAY_NAME are required for AI Gateway')
   }
   
