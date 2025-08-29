@@ -47,6 +47,18 @@ describe('utils.renderMarkdownToTelegramHTML', () => {
     expect(html).toBe('<a href="https://example.com">링크 텍스트</a>')
   })
 
+  it('handles URLs with parentheses correctly', () => {
+    const raw = '[SpongeBob](https://en.wikipedia.org/wiki/SpongeBob_SquarePants_(character))'
+    const html = renderMarkdownToTelegramHTML(raw)
+    expect(html).toBe('<a href="https://en.wikipedia.org/wiki/SpongeBob_SquarePants_(character)">SpongeBob</a>')
+  })
+
+  it('handles URLs with nested parentheses', () => {
+    const raw = '[Test](https://example.com/path(level1(level2)))'
+    const html = renderMarkdownToTelegramHTML(raw)
+    expect(html).toBe('<a href="https://example.com/path(level1(level2))">Test</a>')
+  })
+
   it('escapes HTML special characters', () => {
     const raw = 'Text with < and > symbols & ampersand'
     const html = renderMarkdownToTelegramHTML(raw)

@@ -44,14 +44,70 @@ export function renderMarkdownToTelegramHTML(input: string): string {
   // Now escape HTML special characters in the remaining text
   text = escapeHtml(text);
 
-  // Convert remaining markdown syntax
+  // Convert remaining markdown syntax and handle links with balanced parentheses
   text = text
     .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>") // **bold**
-    .replace(/\*([^*]+)\*/g, "<i>$1</i>") // *italic*
-    .replace(/\[([^\]]+)\]\(([^)]*)\)/g, (_, linkText, url) => {
-      // Both URL and link text are already escaped by escapeHtml above
-      return `<a href="${url}">${linkText}</a>`;
-    }); // [text](url)
+    .replace(/\*([^*]+)\*/g, "<i>$1</i>"); // *italic*
+
+  // Handle markdown links with proper parentheses balancing using a custom parser
+  const parseMarkdownLinks = (input: string): string => {
+    let result = '';
+    let i = 0;
+    
+    while (i < input.length) {
+      // Look for the start of a markdown link
+      const linkStart = input.indexOf('[', i);
+      if (linkStart === -1) {
+        result += input.slice(i);
+        break;
+      }
+      
+      // Add text before the link
+      result += input.slice(i, linkStart);
+      
+      // Find the end of link text
+      const linkTextEnd = input.indexOf(']', linkStart);
+      if (linkTextEnd === -1 || linkTextEnd + 1 >= input.length || input[linkTextEnd + 1] !== '(') {
+        result += input[linkStart];
+        i = linkStart + 1;
+        continue;
+      }
+      
+      const linkText = input.slice(linkStart + 1, linkTextEnd);
+      
+      // Parse URL with balanced parentheses
+      let urlStart = linkTextEnd + 2;
+      let urlEnd = urlStart;
+      let parenCount = 0;
+      
+      while (urlEnd < input.length) {
+        const char = input[urlEnd];
+        if (char === '(') {
+          parenCount++;
+        } else if (char === ')') {
+          if (parenCount === 0) {
+            break;
+          }
+          parenCount--;
+        }
+        urlEnd++;
+      }
+      
+      if (urlEnd >= input.length) {
+        // No closing paren found
+        result += input.slice(linkStart);
+        break;
+      }
+      
+      const url = input.slice(urlStart, urlEnd);
+      result += `<a href="${url}">${linkText}</a>`;
+      i = urlEnd + 1;
+    }
+    
+    return result;
+  };
+
+  text = parseMarkdownLinks(text)
 
   // Restore all preserved elements (HTML tags and code blocks)
   text = text.replace(
