@@ -11,9 +11,11 @@
     "check": "npm run typecheck && npm run test",
     "webhook:set": "node scripts/webhook.mjs set",
     "webhook:delete": "node scripts/webhook.mjs delete",
-    "webhook:info": "node scripts/webhook.mjs info"
+    "webhook:info": "node scripts/webhook.mjs info",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
   },
