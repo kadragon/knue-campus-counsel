@@ -188,11 +188,15 @@ export async function handleProgressiveStatus(opts: {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#39;")
           
-          // Basic URL validation and sanitization
-          let cleanUrl = ref.url.trim()
-          if (cleanUrl && (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://'))) {
-            finalMessage += `${validRefIndex}. <a href="${cleanUrl}">${escapedTitle}</a>\n`
-            validRefIndex++
+          // Enhanced URL validation using URL constructor
+          try {
+            const url = new URL(ref.url.trim())
+            if (url.protocol === 'http:' || url.protocol === 'https:') {
+              finalMessage += `${validRefIndex}. <a href="${url.href}">${escapedTitle}</a>\n`
+              validRefIndex++
+            }
+          } catch {
+            // Invalid URL, skip this reference
           }
         }
       })
