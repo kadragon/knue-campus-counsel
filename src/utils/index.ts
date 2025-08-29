@@ -8,7 +8,8 @@ export function escapeHtml(input: string): string {
   return input
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /**
@@ -20,32 +21,99 @@ export function renderMarkdownToTelegramHTML(input: string): string {
   // Remove MarkdownV2 escape sequences that LLM might still generate
   text = text.replace(/\\([_.[\]()~`>#+=|{}.!:-])/g, "$1");
 
-  // Simple approach: preserve existing HTML tags and convert markdown
+  // Extract and preserve code blocks first, then HTML tags
+  const codeBlockRegex = /`([^`]*)`/g;
   const htmlTagRegex = /<\/?[a-zA-Z][^>]*>/g;
-  const tags: string[] = [];
-  const PLACEHOLDER = "\uE000TAG\uE001";
+  const preservedElements: string[] = [];
+  const PLACEHOLDER = "\uE000ELEM\uE001";
 
-  // Extract existing HTML tags
+  // First extract code blocks (before HTML tag extraction)
+  text = text.replace(codeBlockRegex, (_, codeContent) => {
+    const escapedCode = escapeHtml(codeContent);
+    const codeTag = `<code>${escapedCode}</code>`;
+    preservedElements.push(codeTag);
+    return `${PLACEHOLDER}${preservedElements.length - 1}${PLACEHOLDER}`;
+  });
+
+  // Then extract existing HTML tags
   text = text.replace(htmlTagRegex, (match) => {
-    tags.push(match);
-    return `${PLACEHOLDER}${tags.length - 1}${PLACEHOLDER}`;
+    preservedElements.push(match);
+    return `${PLACEHOLDER}${preservedElements.length - 1}${PLACEHOLDER}`;
   });
 
   // Now escape HTML special characters in the remaining text
   text = escapeHtml(text);
 
-  // Convert markdown syntax
+  // Convert remaining markdown syntax and handle links with balanced parentheses
   text = text
     .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>") // **bold**
-    .replace(/\*([^*]+)\*/g, "<i>$1</i>") // *italic*
-    .replace(/`([^`]+)`/g, "<code>$1</code>") // `code`
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>'); // [text](url)
+    .replace(/\*([^*]+)\*/g, "<i>$1</i>"); // *italic*
 
-  // Restore HTML tags
+  // Handle markdown links with proper parentheses balancing using a custom parser
+  const parseMarkdownLinks = (input: string): string => {
+    let result = '';
+    let i = 0;
+    
+    while (i < input.length) {
+      // Look for the start of a markdown link
+      const linkStart = input.indexOf('[', i);
+      if (linkStart === -1) {
+        result += input.slice(i);
+        break;
+      }
+      
+      // Add text before the link
+      result += input.slice(i, linkStart);
+      
+      // Find the end of link text
+      const linkTextEnd = input.indexOf(']', linkStart);
+      if (linkTextEnd === -1 || linkTextEnd + 1 >= input.length || input[linkTextEnd + 1] !== '(') {
+        result += input[linkStart];
+        i = linkStart + 1;
+        continue;
+      }
+      
+      const linkText = input.slice(linkStart + 1, linkTextEnd);
+      
+      // Parse URL with balanced parentheses
+      let urlStart = linkTextEnd + 2;
+      let urlEnd = urlStart;
+      let parenCount = 0;
+      
+      while (urlEnd < input.length) {
+        const char = input[urlEnd];
+        if (char === '(') {
+          parenCount++;
+        } else if (char === ')') {
+          if (parenCount === 0) {
+            break;
+          }
+          parenCount--;
+        }
+        urlEnd++;
+      }
+      
+      if (urlEnd >= input.length) {
+        // No closing paren found
+        result += input.slice(linkStart);
+        break;
+      }
+      
+      const url = input.slice(urlStart, urlEnd);
+      result += `<a href="${url}">${linkText}</a>`;
+      i = urlEnd + 1;
+    }
+    
+    return result;
+  };
+
+  text = parseMarkdownLinks(text)
+
+  // Restore all preserved elements (HTML tags and code blocks)
   text = text.replace(
     new RegExp(`${PLACEHOLDER}(\\d+)${PLACEHOLDER}`, "g"),
     (_, index) => {
-      return tags[parseInt(index)] || "";
+      return preservedElements[parseInt(index)] || "";
     }
   );
 
