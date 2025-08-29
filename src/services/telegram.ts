@@ -180,8 +180,20 @@ export async function handleProgressiveStatus(opts: {
       let validRefIndex = 1
       result.refs.forEach((ref) => {
         if (ref.title && ref.url) {
-          finalMessage += `${validRefIndex}. <a href="${ref.url}">${ref.title}</a>\n`
-          validRefIndex++
+          // Escape HTML entities in title and validate URL
+          const escapedTitle = ref.title
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;")
+          
+          // Basic URL validation and sanitization
+          let cleanUrl = ref.url.trim()
+          if (cleanUrl && (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://'))) {
+            finalMessage += `${validRefIndex}. <a href="${cleanUrl}">${escapedTitle}</a>\n`
+            validRefIndex++
+          }
         }
       })
     }
